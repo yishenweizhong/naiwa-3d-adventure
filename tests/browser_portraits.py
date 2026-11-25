@@ -80,11 +80,11 @@ with sync_playwright() as p:
     # Exercise both actionable failure paths and retry; no substitution of the old portrait.
     for asset in ["textures/enemy-head.png","models/reference-hero.glb"]:
         bad=browser.new_page()
-        bad.route("**/"+asset,lambda route:route.abort())
+        bad.route("**/"+asset+"*",lambda route:route.abort())
         bad.goto(BASE); bad.wait_for_load_state("networkidle")
         bad.wait_for_function("document.querySelector('#stage').dataset.heroState==='error'")
         check(asset+"加载失败有可见重试",bad.locator("#character-status").is_visible())
-        bad.unroute("**/"+asset)
+        bad.unroute("**/"+asset+"*")
         bad.get_by_role("button",name="重新加载人物").click()
         bad.wait_for_function("document.querySelector('#stage').dataset.heroState==='ready'")
         check(asset+"重试后加载指定人物",data(bad).get("heroPortrait")=="selected-illustration")

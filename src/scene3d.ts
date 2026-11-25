@@ -51,7 +51,7 @@ export class GameScene3D {
   private stage = document.getElementById("stage")!;
   private sun = new T.DirectionalLight(0xffe5b1, 3);
   private loader = new GLTFLoader();
-  private modelUrl = `${import.meta.env.BASE_URL}models/reference-hero.glb`;
+  private modelUrl = `${import.meta.env.BASE_URL}models/reference-hero.glb?v=selected-portrait-20261125`;
 
   constructor(private world: World, private hooks: Hooks) {
     this.renderer = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
@@ -180,12 +180,14 @@ export class GameScene3D {
     this.status("人物加载中…", "loading");
     this.loader.load(this.modelUrl, gltf => {
       this.figure = gltf.scene;
+      let hasPortrait = false;
       this.figure.traverse(o => {
         if (o instanceof T.Mesh) {
           o.castShadow = false; o.receiveShadow = true; o.frustumCulled = false;
           const original = Array.isArray(o.material) ? o.material : [o.material];
           const materials = original.map(m => {
             if (m.name !== "ReferenceFace") return m;
+            hasPortrait = true;
             const source = m as T.MeshStandardMaterial;
             // Preserve the selected illustration's colours, without lighting or tone mapping.
             const portrait = new T.MeshBasicMaterial({
@@ -198,6 +200,11 @@ export class GameScene3D {
           o.material = Array.isArray(o.material) ? materials : materials[0];
         }
       });
+      if (!hasPortrait) {
+        this.heroError = true;
+        this.status("人物资源版本不匹配，请刷新后重新加载。", "error");
+        return;
+      }
       this.hero.add(this.figure);
       this.mixer = new T.AnimationMixer(this.figure);
       // Base idle/walk remain active under upper-body actions, preserving locomotion.

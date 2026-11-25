@@ -89,7 +89,7 @@ def run():
         report["video"]=str(video.path())
         # Failure is explicit and actionable; no old frog is silently substituted.
         bad=browser.new_page()
-        bad.route("**/models/reference-hero.glb",lambda r:r.abort())
+        bad.route("**/models/reference-hero.glb*",lambda r:r.abort())
         bad.goto(BASE); bad.wait_for_load_state("networkidle")
         bad.wait_for_function("document.querySelector('#stage').dataset.heroState==='error'")
         check("资源失败时给出可见重试提示",bad.locator("#character-status").is_visible())
