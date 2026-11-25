@@ -1,4 +1,5 @@
 import { LEVELS, type LevelId, type EnemyKind } from "./levels.ts";
+import type { Difficulty } from "./progress.ts";
 
 export const WIDTH = 1280;
 export const HEIGHT = 720;
@@ -95,6 +96,7 @@ export type GameEvent = {
 };
 export type Save = {
   version: 3;
+  difficulty: Difficulty;
   level: LevelId;
   unlockedLevel: LevelId;
   hazards: Hazard[];
@@ -143,6 +145,7 @@ const freshHero = (): Hero => ({
 });
 
 export class World {
+  difficulty: Difficulty = "normal";
   level: LevelId = 1;
   unlockedLevel: LevelId = 1;
   phase: Phase = "menu";
@@ -291,7 +294,8 @@ export class World {
       amount <= 0
     )
       return;
-    const damage = this.hero.defending ? Math.ceil(amount * 0.4) : amount;
+    const scaled = this.difficulty === "easy" ? Math.ceil(amount * .6) : amount;
+    const damage = this.hero.defending ? Math.ceil(scaled * 0.4) : scaled;
     this.hero.hp = Math.max(0, this.hero.hp - damage);
     this.hero.invulnerable = 0.75;
     if (this.hero.defending)
@@ -407,7 +411,11 @@ export class World {
         chargeY: 0,
       } as Enemy;
     });
-    if (wave > 1) this.hero.hp = Math.min(120, this.hero.hp + 25);
+    if (wave > 1) {
+      const healed = Math.min(120-this.hero.hp, this.difficulty === "easy" ? 40 : 25);
+      this.hero.hp += healed;
+      if (healed) this.events.push({ kind: "heal", x:this.hero.x, y:this.hero.y, value:healed });
+    }
     this.events.push({ kind: "wave", x: 640, y: 360, value: wave });
   }
 
@@ -476,9 +484,10 @@ export class World {
     for (const item of this.pickups) {
       item.life -= dt;
       if (distance(h, item) < 46 && h.hp < 120) {
-        h.hp = Math.min(120, h.hp + 28);
+        const healed = Math.min(120-h.hp, this.difficulty === "easy" ? 40 : 28);
+        h.hp += healed;
         item.life = 0;
-        this.events.push({ kind: "heal", x: h.x, y: h.y, value: 28 });
+        this.events.push({ kind: "heal", x: h.x, y: h.y, value: healed });
       }
     }
     this.pickups = this.pickups.filter((p) => p.life > 0);
@@ -719,6 +728,7 @@ export class World {
   save(): Save {
     return structuredClone({
       version: 3,
+      difficulty: this.difficulty,
       level: this.level,
       unlockedLevel: this.unlockedLevel,
       hazards: this.hazards,
@@ -757,6 +767,7 @@ export function decodeSave(text: string | null): Save | null {
   if (!text || text.length > 250000) return null;
   try {
     const s = JSON.parse(text);
+    if (s && typeof s === "object" && s.difficulty === undefined) s.difficulty = "normal";
     if (s?.version === 1) {
       s.version = 2;
       s.level = 1;
@@ -793,6 +804,7 @@ export function decodeSave(text: string | null): Save | null {
       num(n, min, max) && Number.isInteger(n);
     if (
       s.version !== 3 ||
+      !["easy", "normal"].includes(s.difficulty) ||
       ![1, 2, 3].includes(s.level) ||
       ![1, 2, 3].includes(s.unlockedLevel) ||
       s.level > s.unlockedLevel ||

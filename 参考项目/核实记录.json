@@ -1,0 +1,50 @@
+[
+  {
+    "repository": "mrdoob/three.js",
+    "url": "https://github.com/mrdoob/three.js",
+    "license": "MIT",
+    "branch": "dev",
+    "commit": "7260d884ee08599449f6dca7c7102dec7fae8980",
+    "read": "examples/webgl_animation_skinning_blending.html"
+  },
+  {
+    "repository": "donmccurdy/glTF-Transform",
+    "url": "https://github.com/donmccurdy/glTF-Transform",
+    "license": "MIT",
+    "branch": "main",
+    "commit": "8e2a94a2616d293c4b503d0fb6a4b42e6ec7c62f",
+    "read": "README.md"
+  },
+  {
+    "repository": "KhronosGroup/glTF-Validator",
+    "url": "https://github.com/KhronosGroup/glTF-Validator",
+    "license": "Apache-2.0",
+    "branch": "main",
+    "commit": "40a561dad1bfaee4f1adbcb3d0fb0718fdf6b200",
+    "read": "README.md"
+  },
+  {
+    "repository": "KenneyNL/Starter-Kit-3D-Platformer",
+    "url": "https://github.com/KenneyNL/Starter-Kit-3D-Platformer",
+    "license": "MIT",
+    "branch": "main",
+    "commit": "3fa8a04b1c01ab23db43123d4ce814a34c3fc7f0",
+    "read": "README.md"
+  },
+  {
+    "repository": "pmndrs/drei",
+    "url": "https://github.com/pmndrs/drei",
+    "license": "MIT",
+    "branch": "master",
+    "commit": "bf6f4addf47467d3885de272d94ca5127f6ef68f",
+    "read": "src/core/ContactShadows.tsx"
+  },
+  {
+    "repository": "Arminando/ActionPoser",
+    "url": "https://github.com/Arminando/ActionPoser",
+    "license": "GPL-2.0",
+    "branch": "main",
+    "commit": "b26a7e846ce9ac98d3d6f911597f4681cb7de41b",
+    "read": "README.md"
+  }
+]

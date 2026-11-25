@@ -1,7 +1,8 @@
 node_modules
 dist/
 验收/
-3D人物/
+3D人物/*
+!3D人物/制作卡通人物.py
 *.zip
 *.webm
 *.mp4

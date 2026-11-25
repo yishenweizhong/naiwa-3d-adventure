@@ -1,8 +1,10 @@
-# 奶蛙历险记 · 全 3D 三关冒险
+# 奶蛙历险记 · 可爱卡通三关冒险
 
 在线游玩：https://yishenweizhong.github.io/naiwa-3d-adventure/
 
-点击「直接闯第一关」即可开打。「先练习操作」为可选入口，练习中随时可以直接开打。依次守住奶笑村、穿过风车谷、击败晨光钟楼的长夜钟守，首页可重返已解锁关卡。
+点击「开始冒险」即可开打。「安全练习」为可选入口，练习中随时可以直接开打。依次守住奶笑村、穿过风车谷、击败晨光钟楼的长夜钟守，首页可重返已解锁关卡。
+
+新玩家默认「轻松玩」，受到的伤害为标准模式的约六成，补给回复更多；可切换「标准挑战」。每关通关得一星，剩余生命至少 60 得一星，限时通关得一星（第一关 90 秒、第二关 140 秒、第三关 200 秒）。两种模式分别保存最佳星级与最快用时。
 
 Three.js 绘制三维人物、敌人、村庄、风车、河流、桥梁、钟楼、弹幕、落雷和风墙。HUD 与触控按钮使用 HTML。游戏不需要登录，也不调用在线模型。
 
@@ -21,9 +23,11 @@ Three.js 绘制三维人物、敌人、村庄、风车、河流、桥梁、钟�
 
 ## 人物与动作
 
-Blender 模型使用真人身体比例、20 根骨骼与六组动作：待机、行走、攻击、举盾、冲刺、大笑。手臂和腿在关节附近使用混合权重，头发和围巾有延迟摆动；运行时平滑转向、过渡动作，将移动与上肢动作分层组合。暂停冻结骨骼画面。
+Blender 人物重新建模为柔和的玩偶比例，保留棕色双马尾、黑色猫耳帽、黄黑围巾、深蓝外套、斜纹领带，以及偏细长的眼形。圆润脸型、几何五官、柔和微笑替代上一版的照片投射脸。敌人改为不同职业的玩偶角色，三章场景共用圆角建筑与柔和材质。
 
-人物脸部来自用户参考照片的本地投射纹理，配合手工建立的脸型与鼻部深度。正面纹理保留照片特征；侧面、头发、服装和背面是人工推定。它不是摄影测量扫描，也不是 100% 真人复刻。原始照片不包含在公开仓库中，游戏使用的派生纹理嵌入 GLB。
+模型有 20 根骨骼、41,972 个三角面和六组动作：待机、行走、攻击、举盾、冲刺、大笑。关节使用混合权重，头发和围巾有延迟摆动；运行时平滑转向、渐变切换，将移动与上肢动作分层组合。暂停冻结骨骼画面。优化后的 GLB 为 1,436,524 字节，格式校验无错误和警告。
+
+人物根据用户提供的照片在本地独立制作，没有贴真人脸照片。它是可辨识的卡通表达，没有进行 3D 扫描，不能保证真人 100% 还原。原始照片不进入公开仓库或交付包。
 
 ## 本地运行
 
@@ -49,8 +53,12 @@ npm run preview -- --port 4188
 | `src/clock.ts` | 将渲染间隔拆成安全步长，保持低帧率下的战斗计时 |
 | `src/main.ts` | 键盘、触控、页面与存档 |
 | `public/models/reference-hero.glb` | 游戏实际加载的模型 |
-| `3D人物/参考人物.blend` | 可编辑的本地 Blender 模型 |
-| `3D人物/重建人物.py` | 独立新场景中的可复现建模脚本 |
+| `3D人物/可爱卡通人物.blend` | 交付包内可编辑的本地 Blender 模型 |
+| `3D人物/制作卡通人物.py` | 独立新场景中的可复现建模脚本 |
+| `src/cute.css` | 电脑、手机竖屏与横屏的布局和控件 |
+| `src/progress.ts` | 两种难度的星级与最佳成绩 |
+| `public/models/kenney/` | 实际导入的 CC0 云朵与草丛几何 |
+| `参考项目/使用说明.md` | 六个 GitHub 项目的来源、许可与实际使用范围 |
 | `tests/` | 规则、真实按键、手机模拟触控与资源失败检查 |
 | `docs/` | GitHub Pages 静态部署目录 |
 
@@ -62,4 +70,20 @@ GitHub Pages 从 `main` 分支 `/docs` 目录发布。修改后执行 `npm run b
 
 本版验证结果与实际操作录像见交付目录的 `验收/` 和 `优化说明.md`。规则测试、真实通关与公开网站验收分别记录，不以页面返回 200 代替实际可玩验证。
 
-Three.js 0.181.2 使用 MIT 许可，完整声明见 `public/THIRD_PARTY_NOTICES.md`。人物参考素材不因代码公开而授权其他用途。
+本次核实了 Three.js、glTF Transform、glTF Validator、Kenney 3D Platformer、drei 与 ActionPoser 六个 GitHub 项目，五项进入工作流程，第六项仅评估。完整来源与差异说明见 `参考项目/使用说明.md`。运行时使用 Three.js 的 MIT 代码与 Kenney 的 CC0 几何，声明见 `public/THIRD_PARTY_NOTICES.md`；独立参考文件保留各自原许可。
+
+重新制作模型时，在仓库根目录执行：
+
+```sh
+/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python 3D人物/制作卡通人物.py
+python3 tools/normalize_model.py
+npm install --no-save @gltf-transform/cli@4.2.1 gltf-validator
+npx gltf-transform dedup public/models/reference-hero.glb /tmp/naiwa-dedup.glb
+npx gltf-transform resample /tmp/naiwa-dedup.glb /tmp/naiwa-resampled.glb
+npx gltf-transform prune /tmp/naiwa-resampled.glb public/models/reference-hero.glb
+node tools/validate_model.mjs
+npm run build
+python3 tools/package_game.py
+```
+
+打包脚本另需 Python Pillow。浏览器验收另需 Python Playwright 和 Chromium；执行前设置 `NAIWA_URL` 为当前预览地址。桌面浏览器与模拟触控分别验证，未将模拟结果说成真实手机实测。

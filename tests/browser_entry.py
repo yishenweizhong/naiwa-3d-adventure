@@ -28,9 +28,11 @@ with sync_playwright() as p:
     page.keyboard.up("KeyD"); page.keyboard.up("KeyJ")
     check("实际按键移动并发射三维弹幕",True)
     page.locator("#pause").click()
-    frozen=page.evaluate("window.__naiwa.snapshot()"); image=page.locator("#game canvas").screenshot()
+    frozen=page.evaluate("window.__naiwa.snapshot()")
+    screenshot_style=".overlay,.hud,.boss-status,.guide,.wave-toast,.storm-note,.controls,#character-status{visibility:hidden!important}"
+    image=page.locator("#game canvas").screenshot(style=screenshot_style)
     page.wait_for_timeout(500)
-    check("暂停冻结战斗及三维骨骼画面",frozen==page.evaluate("window.__naiwa.snapshot()") and image==page.locator("#game canvas").screenshot())
+    check("暂停冻结战斗及三维骨骼画面",frozen==page.evaluate("window.__naiwa.snapshot()") and image==page.locator("#game canvas").screenshot(style=screenshot_style))
     page.reload(); page.wait_for_load_state("networkidle")
     page.locator("#resume").click()
     check("刷新后可继续原战斗",page.evaluate("window.__naiwa.snapshot().wave")==1)

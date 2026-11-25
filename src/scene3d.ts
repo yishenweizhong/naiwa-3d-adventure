@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { World, ARENA, type Input, type GameEvent, type Enemy } from "./model.ts";
 import { heroMotion, type HeroMotion } from "./hero-motion.ts";
 import { advanceWorld } from "./clock.ts";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 const px = (x: number) => (x - 640) / 50;
 const pz = (y: number) => (y - 450) / 50;
@@ -15,6 +16,8 @@ export class GameScene3D {
   private renderer: T.WebGLRenderer;
   private environment = new T.Group();
   private dynamic = new T.Group();
+  private decorations = new T.Group();
+  private props = new Map<string,T.Group>();
   private hero = new T.Group();
   private figure?: T.Group;
   private mixer?: T.AnimationMixer;
@@ -29,6 +32,8 @@ export class GameScene3D {
   private geos = new Map<string, T.BufferGeometry>();
   private windmills: T.Group[] = [];
   private effects: { mesh: T.Mesh; age: number; life: number }[] = [];
+  private labels: { sprite:T.Sprite; age:number }[] = [];
+  private shadowTexture?: T.CanvasTexture;
   private transient = { action: "", actionTime: 0 };
   private time = 0;
   private last = 0;
@@ -48,15 +53,14 @@ export class GameScene3D {
     this.renderer.shadowMap.type = T.PCFSoftShadowMap;
     this.renderer.shadowMap.autoUpdate = false;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.25;
+    this.renderer.toneMappingExposure = 1.1;
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.domElement.setAttribute("aria-label", "实时三维游戏场景");
     document.getElementById("game")!.append(this.renderer.domElement);
     this.camera.position.set(0, 18, 23);
     this.camera.lookAt(0, 0, -2);
-    this.scene.add(this.environment, this.dynamic, this.hero);
-    const contact=this.mesh(this.hero,"cylinder","#53604e",[0,.012,0],[.20,.018,.13],true);
-    contact.castShadow=false;
+    this.scene.add(this.environment, this.decorations, this.dynamic, this.hero);
+    this.contact(this.hero,.29);
     this.scene.add(new T.HemisphereLight(0xd9efff, 0x7c7559, 2.3));
     this.sun.position.set(-8, 18, 9);
     this.sun.castShadow = true;
@@ -65,15 +69,20 @@ export class GameScene3D {
     this.sun.shadow.bias = -.0008;
     this.sun.shadow.normalBias = .03;
     this.scene.add(this.sun);
+    const game = document.getElementById("game")!;
     new ResizeObserver(() => {
-      this.renderer.setSize(this.stage.clientWidth, this.stage.clientHeight, false);
+      this.renderer.setSize(game.clientWidth, game.clientHeight, false);
+      const halfHeight=13.5*game.clientHeight/Math.max(1,game.clientWidth);
+      this.camera.top=halfHeight; this.camera.bottom=-halfHeight;
+      this.camera.updateProjectionMatrix();
       this.dirty = true;
-    }).observe(this.stage);
+    }).observe(game);
     this.renderer.domElement.addEventListener("webglcontextlost", e => {
       e.preventDefault();
       this.world.pause(true);
       this.status("画面连接中断，刷新页面后可继续已保存的进度。", "error");
     });
+    this.loadProps();
     this.loadHero();
     this.renderer.setAnimationLoop(now => this.tick(now));
   }
@@ -90,6 +99,36 @@ export class GameScene3D {
       button.onclick = () => this.loadHero();
       box.append(button);
     }
+  }
+  private loadProps() {
+    for (const name of ["cloud","grass"]) {
+      this.loader.load(`${import.meta.env.BASE_URL}models/kenney/${name}.glb`, gltf => {
+        const bounds=new T.Box3().setFromObject(gltf.scene), size=bounds.getSize(new T.Vector3());
+        const center=bounds.getCenter(new T.Vector3());
+        gltf.scene.traverse(o=>{
+          if (o instanceof T.Mesh) { o.material=this.mat(name==="cloud"?"#fff8ef":"#87b183"); o.castShadow=false; }
+        });
+        const normalized=new T.Group(); normalized.add(gltf.scene);
+        gltf.scene.position.sub(center);
+        if (name==="grass") gltf.scene.position.y+=size.y/2;
+        normalized.scale.setScalar((name==="cloud"?4:.65)/Math.max(size.x,size.y,size.z));
+        this.props.set(name,normalized); this.placeProps(); this.dirty=true;
+      },undefined,()=>{ this.stage.dataset.propError=name; });
+    }
+  }
+  private placeProps() {
+    this.decorations.clear();
+    for (const [name,source] of this.props) {
+      const count=name==="cloud"?5:12;
+      for (let i=0;i<count;i++) {
+        const g=source.clone(true);
+        g.position.set(name==="cloud"?-15+i*7:-11+i*2,
+          name==="cloud"?6+(i%2)*1.7:.03,name==="cloud"?-14-i%2*2:-4.6);
+        if (name==="grass") g.rotation.y=i*1.7;
+        this.decorations.add(g);
+      }
+    }
+    this.stage.dataset.cc0Props=String(this.props.size);
   }
 
   private loadHero() {
@@ -143,7 +182,7 @@ export class GameScene3D {
   }
   private geometry(kind: string) {
     if (!this.geos.has(kind)) {
-      const g = kind === "box" ? new T.BoxGeometry(1, 1, 1)
+      const g = kind === "box" ? new RoundedBoxGeometry(1, 1, 1, 2, .08)
         : kind === "sphere" ? new T.SphereGeometry(1, 16, 12)
         : kind === "cone" ? new T.ConeGeometry(1, 1, 6)
         : kind === "ring" ? new T.TorusGeometry(1, .035, 6, 48)
@@ -169,11 +208,24 @@ export class GameScene3D {
     m.rotation.x = -Math.PI / 2; m.castShadow = false;
     return m;
   }
+  // Inspired by drei's blurred contact shadows; a shared procedural decal avoids per-frame depth passes.
+  private contact(parent:T.Object3D,radius:number) {
+    if (!this.shadowTexture) {
+      const canvas=document.createElement("canvas"); canvas.width=canvas.height=64;
+      const ctx=canvas.getContext("2d")!, gradient=ctx.createRadialGradient(32,32,3,32,32,32);
+      gradient.addColorStop(0,"rgba(43,58,43,.32)"); gradient.addColorStop(.45,"rgba(43,58,43,.16)");
+      gradient.addColorStop(1,"rgba(43,58,43,0)"); ctx.fillStyle=gradient; ctx.fillRect(0,0,64,64);
+      this.shadowTexture=new T.CanvasTexture(canvas);
+    }
+    const m=new T.Mesh(new T.PlaneGeometry(radius*3,radius*2.2),
+      new T.MeshBasicMaterial({map:this.shadowTexture,transparent:true,depthWrite:false}));
+    m.rotation.x=-Math.PI/2; m.position.y=.085; parent.add(m);
+  }
 
   private house(x: number, z: number, color: string, size = 1) {
     const g = new T.Group(); g.position.set(x, 0, z); g.scale.setScalar(size); this.environment.add(g);
     this.box(g, color, 0, 1.35, 0, 2.8, 2.7, 2.2);
-    const roof = this.mesh(g, "cone", "#71644d", [0, 3.25, 0], [2.3, 1.4, 1.9]);
+    const roof = this.mesh(g, "cone", "#d78d83", [0, 3.25, 0], [2.3, 1.4, 1.9]);
     roof.rotation.y = Math.PI / 6;
     this.box(g, "#5b5b4f", 0, .8, 1.13, .6, 1.6, .08);
     for (const s of [-1, 1]) {
@@ -184,15 +236,15 @@ export class GameScene3D {
   }
   private tree(x: number, z: number, size = 1) {
     const g = new T.Group(); g.position.set(x, 0, z); g.scale.setScalar(size); this.environment.add(g);
-    this.mesh(g, "cylinder", "#756343", [0, 1, 0], [.17, 2, .17]);
+    this.mesh(g, "cylinder", "#ad8865", [0, 1, 0], [.17, 2, .17]);
     for (let i=0; i<3; i++)
-      this.mesh(g, "sphere", i === 1 ? "#81975c" : "#657b4e",
+      this.mesh(g, "sphere", i === 1 ? "#a4c98a" : "#7fab80",
         [Math.sin(i*2)*.45, 2.1+i*.38, Math.cos(i*2)*.28], [.95, .85, .95]);
   }
   private windmill(x: number, z: number, size = 1) {
     const g = new T.Group(); g.position.set(x, 0, z); g.scale.setScalar(size); this.environment.add(g);
     this.mesh(g, "cylinder", "#c4bca1", [0, 2, 0], [.9, 4, .9]);
-    this.mesh(g, "cone", "#67566d", [0, 4.3, 0], [1.25, 1.15, 1.25]);
+    this.mesh(g, "cone", "#b78aa6", [0, 4.3, 0], [1.25, 1.15, 1.25]);
     const blades = new T.Group(); blades.position.set(0, 3.15, .97); g.add(blades);
     for (let i=0; i<4; i++) {
       const b = this.box(blades, "#e8d8b1", 0, 1.0, 0, .28, 2.1, .08);
@@ -206,11 +258,11 @@ export class GameScene3D {
     this.environment.traverse(o => { if (o instanceof T.InstancedMesh) o.dispose(); });
     this.environment.clear(); this.windmills = [];
     const dusk = level === 2, night = level === 3 && this.world.phase !== "won";
-    this.scene.background = new T.Color(night ? "#7884a5" : dusk ? "#d1b7c4" : "#d8e3d8");
+    this.scene.background = new T.Color(night ? "#8e99bf" : dusk ? "#ecd0da" : "#c5e2dd");
     this.scene.fog = new T.Fog(this.scene.background, 38, 78);
     this.sun.color.set(night ? "#b0c9ff" : "#ffe2ad");
-    const ground = night ? "#7b8291" : dusk ? "#998987" : "#acb493";
-    this.box(this.environment, "#787a67", 0, -.55, -2, 30, 1, 20);
+    const ground = night ? "#b3b7cd" : dusk ? "#c9b6ad" : "#bdd39e";
+    this.box(this.environment, "#b8a98b", 0, -.55, -2, 30, 1, 20);
     this.box(this.environment, ground, 0, -.06, 0, 23.5, .16, 8.3);
     // Continuous stone edges mark the actual combat boundary.
     for (const x of [-11.7, 11.7]) this.box(this.environment, "#d7cbb4", x, .06, 0, .12, .18, 8.3);
@@ -221,8 +273,9 @@ export class GameScene3D {
     }
     for (let i=0; i<9; i++) {
       const x=-19+i*4.7, z=-15-Math.sin(i)*2;
-      this.mesh(this.environment, "sphere", dusk ? "#7f8f86" : "#879b87", [x, .3, z], [5, 3.8+(i%3), 4]);
+      this.mesh(this.environment, "sphere", dusk ? "#acb9aa" : "#a3c3a0", [x, .3, z], [5, 3.8+(i%3), 4]);
     }
+    this.placeProps();
     if (level === 1) {
       this.house(-8, -7.4, "#e0ceb1", 1.1);
       this.house(-3.8, -8.8, "#d8c3a7", .86);
@@ -264,6 +317,14 @@ export class GameScene3D {
       const x=-12.2+(i%2)*24.4, z=-3.4+Math.floor(i/2)*1.2;
       this.mesh(this.environment,"sphere","#909588",[x,.15,z],[.28,.2,.34]);
     }
+    for (let i=0;i<25;i++) {
+      const x=-11+i*.93, z=-4.55-(i%3)*.14;
+      this.mesh(this.environment,"cylinder","#6b9972",[x,.19,z],[.026,.38,.026]);
+      for (let j=0;j<4;j++)
+        this.mesh(this.environment,"sphere",i%2?"#f5d389":"#eeadbc",
+          [x+Math.sin(j*Math.PI/2)*.09,.39,z+Math.cos(j*Math.PI/2)*.09],[.095,.065,.095]);
+      this.mesh(this.environment,"sphere","#fff4d7",[x,.43,z],[.052,.04,.052]);
+    }
     this.stage.dataset.renderMode = "full-3d";
     this.batchEnvironment();
     this.renderer.shadowMap.needsUpdate=true;
@@ -294,32 +355,45 @@ export class GameScene3D {
     if (!g) {
       g=new T.Group(); this.actorMap.set(key,g); this.dynamic.add(g);
       const boss=e.kind==="boss", mage=e.kind==="mage", rusher=e.kind==="rusher";
-      const color=boss ? "#616b83" : mage ? "#817099" : rusher ? "#927868" : "#7b8a82";
-      this.mesh(g,"cylinder",color,[0,.8,0],[.34,1.1,.28]);
-      this.mesh(g,"sphere","#b8b6a5",[0,1.53,0],[.3,.33,.29]);
-      this.mesh(g,"cone",color,[0,1.88,0],[.36,.4,.34]);
+      const color=boss ? "#9b8bb7" : mage ? "#b49bcb" : rusher ? "#dea274" : "#93b5a0";
+      this.mesh(g,"sphere",color,[0,.69,0],[.39,.49,.31]);
+      this.mesh(g,"sphere","#f3dcc0",[0,1.22,.04],[.34,.31,.28]);
+      this.mesh(g,"sphere",color,[0,1.35,-.12],[.38,.30,.30]);
+      this.mesh(g,"sphere","#f3dcc0",[0,1.22,.085],[.32,.27,.27]);
       for (const s of [-1,1]) {
-        this.mesh(g,"sphere",color,[s*.42,1.03,0],[.14,.4,.14]);
-        this.mesh(g,"sphere","#515969",[s*.15,.22,0],[.13,.27,.16]);
-        this.mesh(g,"sphere",boss ? "#eed584" : "#333c4b",[s*.095,1.57,.266],[.04,.047,.025]);
+        const ear=this.mesh(g,"sphere",color,[s*.25,1.54,-.04],[.12,mage?.26:.13,.10]);
+        if (rusher) { ear.scale.y=.21; ear.rotation.z=-s*.35; }
+        const arm=this.mesh(g,"sphere",color,[s*.40,.76,.01],[.14,.25,.14]); arm.name=`arm${s}`;
+        this.mesh(g,"sphere","#f3dcc0",[s*.43,.55,.025],[.11,.11,.11]);
+        const foot=this.mesh(g,"sphere","#655772",[s*.16,.18,.02],[.14,.18,.19]); foot.name=`foot${s}`;
+        this.mesh(g,"sphere","#4d4357",[s*.112,1.24,.334],[.026,.039,.017]);
+        this.mesh(g,"sphere","#fff8e7",[s*.107,1.254,.35],[.008,.011,.004]);
+        this.mesh(g,"sphere","#e6b4ad",[s*.21,1.15,.294],[.039,.019,.008]);
       }
+      this.mesh(g,"sphere","#785868",[0,1.108,.353],[.047,.012,.008]);
+      this.mesh(g,"sphere","#ead096",[0,.75,.31],[.20,.26,.035]);
       if (mage) {
         this.mesh(g,"cylinder","#5f536c",[.52,.8,0],[.04,1.4,.04]);
         this.mesh(g,"sphere","#c0a4de",[.52,1.57,0],[.13,.13,.13]);
       }
       if (boss) {
-        g.scale.setScalar(1.85);
+        g.scale.setScalar(1.75);
         this.box(g,"#a5a8b4",0,.95,-.3,.9,1.1,.16);
-        this.ring(g,"#e9c880",.44,1.97);
+        this.ring(g,"#f3d082",.30,1.57);
+        for (const x of [-.22,0,.22]) this.mesh(g,"cone","#f3d082",[x,1.70,0],[.10,.24,.10]);
       }
       const bar=new T.Group(); bar.name="health"; bar.position.set(0,boss?2.4:2.2,0); g.add(bar);
       this.box(bar,"#424d59",0,0,0,.7,.07,.05);
       const fill=this.box(bar,"#dce3b9",0,0,.035,.68,.05,.04); fill.name="fill";
-      this.mesh(g,"cylinder","#53604e",[0,.012,0],[.34,.018,.22],true);
+      this.contact(g,.35);
     }
     g.position.set(px(e.x),0,pz(e.y));
     g.rotation.y=Math.atan2(this.hero.position.x-g.position.x,this.hero.position.z-g.position.z);
     g.position.y=e.stun>0 ? .06*Math.sin(this.time*14) : .025*Math.sin(this.time*5+e.id);
+    for (const s of [-1,1]) {
+      g.getObjectByName(`arm${s}`)!.rotation.x=e.windup>0 ? -.6 : s*.24*Math.sin(this.time*6+e.id);
+      g.getObjectByName(`foot${s}`)!.position.y=.18+s*.035*Math.sin(this.time*6+e.id);
+    }
     g.getObjectByName("fill")!.scale.x=.68*Math.max(0,e.hp/e.maxHp);
     if (e.windup>0) {
       const warning=this.item(`warning:${e.id}`,() => {
@@ -421,13 +495,28 @@ export class GameScene3D {
       m.rotation.x=-Math.PI/2; m.position.set(px(e.x),.1,pz(e.y)); m.scale.setScalar(.2);
       this.dynamic.add(m); this.effects.push({mesh:m,age:0,life:e.kind==="laugh"?.85:.35});
     }
+    if (e.value && ["hit","hurt","heal","block"].includes(e.kind)) {
+      const c=document.createElement("canvas"); c.width=128; c.height=64;
+      const ctx=c.getContext("2d")!; ctx.font="bold 36px sans-serif"; ctx.textAlign="center";
+      ctx.lineWidth=7; ctx.strokeStyle="#fffaf1";
+      const text=`${e.kind==="heal"?"+":"−"}${e.value}`;
+      ctx.strokeText(text,64,46); ctx.fillStyle=e.kind==="heal"?"#527d5b":e.kind==="hurt"?"#be5e73":"#947343"; ctx.fillText(text,64,46);
+      const sprite=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(c),depthTest:false,transparent:true}));
+      sprite.position.set(px(e.x),2.7,pz(e.y)); sprite.scale.set(1.1,.55,1);
+      this.dynamic.add(sprite); this.labels.push({sprite,age:0});
+    }
     this.hooks.event(e);
   }
 
   private animateHero(dt: number, input: Input) {
     const menu=this.world.phase==="menu", h=this.world.hero;
-    this.hero.position.set(menu?5.2:px(h.x),0,menu?3.0:pz(h.y));
-    this.hero.scale.setScalar(menu?4.8:1.3);
+    const mobile=matchMedia("(max-width:650px) and (orientation:portrait)").matches;
+    this.hero.position.set(menu?(mobile?0:6):px(h.x),0,menu?2.8:pz(h.y));
+    this.hero.scale.setScalar(menu?(mobile?3.6:4.6):1.5);
+    this.camera.position.lerp(new T.Vector3(0,menu?10:18,menu?27:23),1-Math.exp(-dt*6));
+    this.camera.zoom=T.MathUtils.damp(this.camera.zoom, menu&&mobile?1.75:1,8,dt);
+    this.camera.updateProjectionMatrix();
+    this.camera.lookAt(0,menu?2:0,menu?0:-2);
     if (!this.ready) return;
     const moving=!menu && Math.hypot(input.x,input.y)>.05;
     const target=menu ? -.08 : this.world.hero.dashTime>0 || (this.transient.action==="dash" && this.transient.actionTime>0)
@@ -502,6 +591,13 @@ export class GameScene3D {
         if (fx.age>=fx.life) {
           this.dynamic.remove(fx.mesh); (fx.mesh.material as T.Material).dispose();
           this.effects.splice(this.effects.indexOf(fx),1);
+        }
+      }
+      for (const label of [...this.labels]) {
+        label.age+=dt; label.sprite.position.y+=dt*.8; label.sprite.material.opacity=Math.max(0,1-label.age/.75);
+        if (label.age>=.75) {
+          this.dynamic.remove(label.sprite); label.sprite.material.map!.dispose(); label.sprite.material.dispose();
+          this.labels.splice(this.labels.indexOf(label),1);
         }
       }
       this.dirty=true;

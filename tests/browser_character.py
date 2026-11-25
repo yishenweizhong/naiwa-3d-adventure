@@ -19,7 +19,10 @@ def motion(page,name):
         arg=name,timeout=5000)
 
 def canvas_hash(page):
-    return page.locator("#game canvas").screenshot()
+    # Locator screenshots include overlapping DOM; compare the WebGL scene
+    # independently of the toast timeout and HUD CSS transitions.
+    return page.locator("#game canvas").screenshot(style=
+        ".overlay,.hud,.boss-status,.guide,.wave-toast,.storm-note,.controls,#character-status{visibility:hidden!important}")
 
 def run():
     with sync_playwright() as p:
@@ -63,7 +66,11 @@ def run():
         page.wait_for_timeout(100)
         before=canvas_hash(page); state=page.evaluate("window.__naiwa.snapshot()")
         page.wait_for_timeout(500)
-        check("暂停冻结3D画面和游戏状态",canvas_hash(page)==before and state==page.evaluate("window.__naiwa.snapshot()"))
+        after=canvas_hash(page)
+        (OUT/"暂停场景_前.png").write_bytes(before)
+        (OUT/"暂停场景_后.png").write_bytes(after)
+        check("暂停冻结游戏状态",state==page.evaluate("window.__naiwa.snapshot()"))
+        check("暂停冻结3D画面",after==before)
         page.locator("#continue").click()
         page.keyboard.down("KeyK")
         page.wait_for_function("window.__naiwa.snapshot().hero.energy===100",timeout=40000)

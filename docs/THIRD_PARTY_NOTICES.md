@@ -28,7 +28,21 @@ THE SOFTWARE.
 
 ## Reference character
 
-The character uses locally authored geometry and a derived face texture from
-user-provided photographs. Original photographs are excluded from this
-distribution. Public game access does not grant rights to use a person's
-likeness or photographic material for other purposes.
+The character uses original, locally authored cartoon geometry inspired by
+user-provided reference photographs. No photographic face texture is used in
+this release. Original photographs are excluded from this distribution.
+Public game access does not grant rights to use a person's likeness or
+photographic material for other purposes.
+
+## Kenney platformer assets
+
+Source: https://github.com/KenneyNL/Starter-Kit-3D-Platformer
+
+Assets: cloud.glb and grass.glb from the included platformer kit.
+License: Creative Commons CC0 1.0 Universal.
+https://creativecommons.org/publicdomain/zero/1.0/
+
+The asset geometry is retained; external palette textures are removed and
+replaced with original runtime materials. The Godot gameplay code is not
+included in the game runtime. Source references and original license notices
+are retained separately in the repository's reference directory.

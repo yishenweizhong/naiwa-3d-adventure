@@ -6,12 +6,12 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#f3eedf" />
+    <meta name="theme-color" content="#f8f0e5" />
     <meta
       name="description"
       content="奶蛙历险记：村庄、风车谷和晨光钟楼的全 3D 三关动作冒险。支持键盘、触控与本地存档。"
     />
-    <title>奶蛙历险记 · 三关冒险</title>
+    <title>奶蛙历险记 · 可爱卡通冒险</title>
   </head>
   <body>
     <header class="site-header">
@@ -19,7 +19,7 @@
         ><span class="brand-dot"></span> 奶蛙历险记</a
       >
       <span class="chapter-label">第一章 · 守住奶笑村</span>
-      <span class="edition">三关冒险 / 全 3D 版</span>
+      <span class="edition">可爱卡通版 · 3D 冒险</span>
     </header>
     <main>
       <div class="stage" id="stage" aria-label="奶蛙历险记游戏区域">
@@ -27,7 +27,7 @@
         <div id="character-status" role="status" aria-live="polite">人物加载中…</div>
         <div class="hud" id="hud" hidden>
           <div class="hero-status">
-            <span class="hero-badge" aria-hidden="true">✦</span>
+            <span class="hero-badge" aria-hidden="true">☺</span>
             <div>
               <div class="status-title">
                 <strong>奶蛙</strong><span id="hp-text">120 / 120</span>
@@ -154,32 +154,43 @@
         </div>
         <section class="overlay menu-overlay" id="menu">
           <div class="menu-content">
-            <span class="eyebrow">一个新伙伴，一点大本领</span>
+            <span class="eyebrow">NAIWA'S LITTLE ADVENTURE</span>
             <h1>奶蛙<br />历险记<span class="title-dot">。</span></h1>
             <p class="intro">
-              冷面军团闯进了村子。<br />用奶弹、盾牌和一场大笑，<br />把好心情带回来。
+              戴好小帽子，带上你的好心情。<br />把村庄、风车谷和钟楼的笑声找回来。
             </p>
+            <div class="difficulty" role="group" aria-label="冒险难度">
+              <button id="easy" aria-pressed="true">轻松玩</button>
+              <button id="normal" aria-pressed="false">标准挑战</button>
+            </div>
+            <p class="difficulty-note" id="difficulty-note">伤害更低，补给更多，适合第一次玩。</p>
             <div class="menu-buttons">
-              <button id="start" class="primary">直接闯第一关 <span>→</span></button
+              <button id="start" class="primary">开始冒险 <span>→</span></button
               ><button id="resume" class="secondary" hidden>
                 继续上次冒险
               </button>
             </div>
-            <button id="practice" class="text-button">先练习操作</button>
-            <p class="chapter-note">奶笑村 / 风车谷 / 晨光钟楼</p>
-            <button id="start-level2" class="chapter-link" disabled>
-              第二关 · 通关第一关后解锁
-            </button>
-            <button id="start-level3" class="chapter-link" disabled>
-              第三关 · 通关第二关后解锁
-            </button>
-            <button class="text-button" id="menu-help">
-              第一次玩？看看操作
-            </button>
+            <div class="chapter-map" aria-label="三章冒险地图">
+              <button id="start-level1" class="chapter-link">
+                <span class="chapter-icon village-icon">⌂</span><b>01 奶笑村</b>
+                <span class="chapter-action">出发守村</span><span class="chapter-stars" id="stars-1">☆☆☆</span>
+              </button>
+              <button id="start-level2" class="chapter-link" disabled>
+                <span class="chapter-icon wind-icon">✣</span><b>02 风车谷</b>
+                <span class="chapter-action">通关第一章解锁</span><span class="chapter-stars" id="stars-2">☆☆☆</span>
+              </button>
+              <button id="start-level3" class="chapter-link" disabled>
+                <span class="chapter-icon clock-icon">◷</span><b>03 晨光钟楼</b>
+                <span class="chapter-action">通关第二章解锁</span><span class="chapter-stars" id="stars-3">☆☆☆</span>
+              </button>
+            </div>
+            <div class="menu-links"><button id="practice" class="text-button">安全练习</button>
+              <button class="text-button" id="menu-help">操作说明</button>
+              <span>三章 · 六种动作 · 自动存档</span></div>
           </div>
           <div class="menu-art-note">
             <span class="note-line"></span>
-            <p>奶笑村的守护者<br /><strong>把好心情带回来。</strong></p>
+            <p>双马尾 · 小尖耳 · 黄围巾<br /><strong>今天也要开心出发。</strong></p>
           </div>
         </section>
         <section
@@ -260,6 +271,8 @@
             ><span class="eyebrow" id="result-eyebrow"></span>
             <h2 id="result-title"></h2>
             <p id="result-copy"></p>
+            <div id="result-stars" class="result-stars" aria-label="本关星级"></div>
+            <p id="star-detail" class="star-detail"></p>
             <div class="result-stats">
               <div>
                 <strong id="result-kills"></strong><span>击退敌人</span>
@@ -277,7 +290,7 @@
       </p>
     </main>
     <footer>
-      <span>全 3D 冒险 · Three.js × Blender</span
+      <span>奶蛙的三章小冒险</span
       ><span id="save-note">进度自动保存在本机</span
       ><span id="place-note">奶笑村 · 晴</span>
     </footer>

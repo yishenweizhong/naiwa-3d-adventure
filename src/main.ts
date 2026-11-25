@@ -1,6 +1,4 @@
-import "./style.css";
-import "./level2.css";
-import "./level3.css";
+import "./cute.css";
 import {
   World,
   decodeSave,
@@ -10,6 +8,7 @@ import {
 import { GameScene3D } from "./scene3d.ts";
 import { GameAudio } from "./audio.ts";
 import { LEVELS } from "./levels.ts";
+import { readRecords, updateRecord, starsFor, type Difficulty } from "./progress.ts";
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -28,6 +27,22 @@ let shownPhase = "",
   saveClock = 0;
 let saved = readSave();
 world.unlockedLevel = saved?.unlockedLevel ?? 1;
+world.difficulty = saved?.difficulty ?? "easy";
+let records = readRecords((() => { try { return localStorage.getItem("naiwa.stars.v1"); } catch { return null; } })());
+function updateMenuProgress() {
+  for (const level of [1,2,3] as const) {
+    const score = records[`${world.difficulty}-${level}`]?.stars ?? 0;
+    el(`stars-${level}`).textContent = "★".repeat(score) + "☆".repeat(3-score);
+  }
+  for (const mode of ["easy","normal"] as const)
+    el(mode).setAttribute("aria-pressed", String(world.difficulty === mode));
+  el("difficulty-note").textContent = world.difficulty === "easy"
+    ? "伤害更低，补给更多，适合第一次玩。" : "完整战斗强度，试试三星通关。";
+}
+function setDifficulty(mode: Difficulty) {
+  if (world.phase !== "menu") return;
+  world.difficulty = mode; updateMenuProgress();
+}
 let toastTimer: ReturnType<typeof setTimeout>;
 
 function readSave() {
@@ -209,6 +224,11 @@ function event(e: GameEvent) {
         : `第 ${e.value} 波 · ${world.level === 3 ? "钟楼守卫" : world.level === 2 ? (e.value === 1 ? "斥候来袭" : "风谷守卫") : e.value === 1 ? "冷面卫兵" : "援军来了"}`,
     );
   if (e.kind === "win" || e.kind === "defeat") {
+    if (e.kind === "win") {
+      records = updateRecord(records, world.level, world.difficulty,
+        starsFor(world.phase,world.hero.hp,world.elapsed,world.level), world.elapsed);
+      try { localStorage.setItem("naiwa.stars.v1", JSON.stringify(records)); } catch { /* Current result remains visible. */ }
+    }
     clearInput();
     saveProgress();
   }
@@ -241,16 +261,15 @@ function frame() {
     el("result").hidden = w.phase !== "defeat" && w.phase !== "won";
     el("guide").hidden = w.phase !== "tutorial";
     if (w.phase === "menu") {
+      updateMenuProgress();
       const second = el<HTMLButtonElement>("start-level2");
       second.disabled = w.unlockedLevel < 2;
-      second.textContent = second.disabled
-        ? "第二关 · 通关第一关后解锁"
-        : "第二关 · 重返风车谷 →";
+      second.querySelector(".chapter-action")!.textContent = second.disabled
+        ? "通关第一章解锁" : "重返风车谷 →";
       const third = el<HTMLButtonElement>("start-level3");
       third.disabled = w.unlockedLevel < 3;
-      third.textContent = third.disabled
-        ? "第三关 · 通关第二关后解锁"
-        : "第三关 · 重返晨光钟楼 →";
+      third.querySelector(".chapter-action")!.textContent = third.disabled
+        ? "通关第二章解锁" : "重返钟楼 →";
       el("resume").hidden = !saved;
       el("resume").textContent =
         saved?.phase === "won"
@@ -261,6 +280,12 @@ function frame() {
     }
     if (w.phase === "won" || w.phase === "defeat") {
       const won = w.phase === "won";
+      const stars = starsFor(w.phase,w.hero.hp,w.elapsed,w.level);
+      el("result-stars").textContent = "★".repeat(stars)+"☆".repeat(3-stars);
+      el("result-stars").setAttribute("aria-label",`本关 ${stars} 星，共 3 星`);
+      el("star-detail").textContent = won
+        ? `${w.difficulty === "easy" ? "轻松玩" : "标准挑战"} · 通关得一星，生命≥60与限时通关各加一星。`
+        : "每一关都可以重新挑战，已解锁的关卡会保留。";
       el("result-seal").textContent = won ? "☺" : "☂";
       el("result-eyebrow").textContent = won
         ? `${config.chapter} · 已完成`
@@ -376,6 +401,9 @@ function frame() {
   }
 }
 el("start").addEventListener("click", () => start());
+el("start-level1").addEventListener("click", () => start());
+el("easy").addEventListener("click", () => setDifficulty("easy"));
+el("normal").addEventListener("click", () => setDifficulty("normal"));
 el("practice").addEventListener("click", () => start(true));
 el("skip-practice").addEventListener("click", () => {
   clearInput();
