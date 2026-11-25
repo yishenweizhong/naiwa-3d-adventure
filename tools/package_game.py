@@ -38,16 +38,24 @@ for name in ["src","public","tests","tools","3D人物","参考项目"]:
     for f in (root/name).rglob("*"):
         if f.is_file() and f.name!=".DS_Store" and "__pycache__" not in f.parts and not f.name.endswith((".pyc",".blend1")):
             source.append((f,f.relative_to(root)))
+for f in (root/"验收").rglob("*"):
+    if f.is_file() and f.suffix in {".json",".png",".mp4",".log"}:
+        source.append((f,f.relative_to(root)))
 for name in ["package.json","package-lock.json","tsconfig.json","vite.config.ts","index.html","README.md",".gitignore","优化说明.md","设计与实施.md"]:
     f=root/name
     if f.exists(): source.append((f,Path(name)))
 model=[(f,f.relative_to(root/"3D人物")) for f in (root/"3D人物").iterdir()
        if f.is_file() and f.name!=".DS_Store" and not f.name.endswith(".blend1")]
 model.append((root/"public/models/reference-hero.glb",Path("reference-hero.glb")))
+for f in (root/"public/textures").glob("*.png"):
+    model.append((f,Path("textures")/f.name))
+validation=root/"验收/GLB校验.json"
+if validation.exists():
+    model.append((validation,Path("验收/GLB校验.json")))
 manifest=[
     archive("西红柿历险记_部署包.zip",deploy),
     archive("西红柿历险记_完整源码与Blender.zip",source),
-    archive("可爱人物模型与六组动作.zip",model),
+    archive("指定人物模型与六组动作.zip",model),
 ]
 (root/"交付清单.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2))
 print(json.dumps(manifest,ensure_ascii=False,indent=2))

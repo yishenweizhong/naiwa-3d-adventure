@@ -1,4 +1,4 @@
-# 西红柿历险记 · 可爱卡通三关冒险
+# 西红柿历险记 · 指定人物三关冒险
 
 在线游玩：https://yishenweizhong.github.io/naiwa-3d-adventure/
 
@@ -23,11 +23,13 @@ Three.js 绘制三维人物、敌人、村庄、风车、河流、桥梁、钟�
 
 ## 人物与动作
 
-Blender 人物重新建模为柔和的玩偶比例，保留棕色双马尾、黑色猫耳帽、黄黑围巾、深蓝外套、斜纹领带，以及偏细长的眼形。圆润脸型、几何五官、柔和微笑替代上一版的照片投射脸。敌人改为不同职业的玩偶角色，三章场景共用圆角建筑与柔和材质。
+主角脸部直接使用用户指定的第二张原画，保留原图的眼睛、鼻子、微笑与刘海。Blender 重做修长身体、黑发侧马尾、白色蕾丝上衣、黑裙和白色金链斜挎包。移动时小幅转向，保持脸部可见。
 
-模型有 20 根骨骼、41,972 个三角面和六组动作：待机、行走、攻击、举盾、冲刺、大笑。关节使用混合权重，头发和围巾有延迟摆动；运行时平滑转向、渐变切换，将移动与上肢动作分层组合。暂停冻结骨骼画面。优化后的 GLB 为 1,436,524 字节，格式校验无错误和警告。
+模型保留 20 根骨骼和六组动作：待机、行走、攻击、举盾、冲刺、大笑。关节使用混合权重，侧马尾、包与链条有轻微摆动；运行时将移动与上肢动作分层组合。暂停冻结骨骼与特效。面数、文件大小与格式检查记录见模型包中的 `模型规格.json` 和 `验收/GLB校验.json`。
 
-人物根据用户提供的照片在本地独立制作，没有贴真人脸照片。它是可辨识的卡通表达，没有进行 3D 扫描，不能保证真人 100% 还原。原始照片不进入公开仓库或交付包。
+所有敌人头部使用第一张照片的裁切头像，始终面向镜头，身体与职业装备仍有区别。真实命中事件携带敌人 ID，单独触发该小兵的头像闪色、回弹和星星，并保留伤害数字；击退后星星消散，头像实例释放。头像与特效共享纹理，实例材质各自独立。资源失败会显示重试入口，主角与小兵素材齐备后才开始推进战斗。
+
+公开仓库与交付包包含游戏使用的两张裁切贴图，不包含完整原图。脸部为原图像素，身体、背面、鞋子和动作由本地补全；这不是 3D 扫描。
 
 ## 本地运行
 
@@ -53,8 +55,10 @@ npm run preview -- --port 4188
 | `src/clock.ts` | 将渲染间隔拆成安全步长，保持低帧率下的战斗计时 |
 | `src/main.ts` | 键盘、触控、页面与存档 |
 | `public/models/reference-hero.glb` | 游戏实际加载的模型 |
-| `3D人物/可爱卡通人物.blend` | 交付包内可编辑的本地 Blender 模型 |
-| `3D人物/制作卡通人物.py` | 独立新场景中的可复现建模脚本 |
+| `3D人物/指定人物.blend` | 交付包内可编辑的本地 Blender 模型 |
+| `3D人物/制作指定人物.py` | 指定原画人物的可复现建模脚本 |
+| `tools/prepare_portraits.py` | 传入两张原始图片路径后生成裁切贴图 |
+| `public/textures/` | 主角原画脸部、小兵照片头像 |
 | `src/cute.css` | 电脑、手机竖屏与横屏的布局和控件 |
 | `src/progress.ts` | 两种难度的星级与最佳成绩 |
 | `public/models/kenney/` | 实际导入的 CC0 云朵与草丛几何 |
@@ -75,7 +79,7 @@ GitHub Pages 从 `main` 分支 `/docs` 目录发布。修改后执行 `npm run b
 重新制作模型时，在仓库根目录执行：
 
 ```sh
-/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python 3D人物/制作卡通人物.py
+/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python 3D人物/制作指定人物.py
 python3 tools/normalize_model.py
 npm install --no-save @gltf-transform/cli@4.2.1 gltf-validator
 npx gltf-transform dedup public/models/reference-hero.glb /tmp/naiwa-dedup.glb
@@ -87,3 +91,11 @@ python3 tools/package_game.py
 ```
 
 打包脚本另需 Python Pillow。浏览器验收另需 Python Playwright 和 Chromium；执行前设置 `NAIWA_URL` 为当前预览地址。桌面浏览器与模拟触控分别验证，未将模拟结果说成真实手机实测。
+
+人物与受击专项验证：
+
+```sh
+NAIWA_URL=http://localhost:4192 python3 tests/browser_portraits.py
+```
+
+头像裁切可通过 `python3 tools/prepare_portraits.py --enemy <第一张照片路径> --hero <第二张原画路径>` 复现；脚本验证尺寸，不把原始图片复制到游戏目录。制作模型时只需要现有裁切贴图。

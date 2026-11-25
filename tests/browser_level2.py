@@ -58,6 +58,27 @@ def tutorial(page):
 
 
 def play(page, level):
+    if level == 2:
+        # Observe each rendered frame: Python polling can miss the short impact
+        # interval while screenshots or software rendering are busy.
+        page.evaluate("""() => {
+          window.hazardDodges=[];
+          const pending=new Map();
+          function observe(){
+            const s=window.__naiwa.snapshot(), h=s.hero;
+            for(const hazard of s.hazards){
+              if(hazard.windup>0) pending.set(hazard.id,{...hazard,hp:h.hp});
+              else if(pending.has(hazard.id)){
+                const before=pending.get(hazard.id);
+                if(Math.hypot(h.x-hazard.x,h.y-hazard.y)>=hazard.radius && h.hp>=before.hp)
+                  hazardDodges.push({id:hazard.id,hpBefore:before.hp,hpAfter:h.hp});
+                pending.delete(hazard.id);
+              }
+            }
+            if(s.phase==='playing' && s.level===2) requestAnimationFrame(observe);
+          }
+          requestAnimationFrame(observe);
+        }""")
     page.keyboard.down("KeyJ")
     started = time.monotonic()
     waves, seen = set(), set()
@@ -143,6 +164,8 @@ def play(page, level):
     for key in pressed | {"KeyJ"}:
         page.keyboard.up(key)
     end = state(page)
+    if level == 2:
+        dodges = max(dodges, page.evaluate("window.hazardDodges.length"))
     REPORT[f"level{level}"] = {
         "phase": end["phase"], "kills": end["kills"], "hp": end["hero"]["hp"],
         "battle_seconds": round(end["elapsed"], 2), "waves": sorted(waves),

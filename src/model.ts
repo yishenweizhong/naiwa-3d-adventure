@@ -93,6 +93,7 @@ export type GameEvent = {
   x: number;
   y: number;
   value?: number;
+  targetId?: number;
 };
 export type Save = {
   version: 3;
@@ -317,7 +318,7 @@ export class World {
     if (!this.enemies.includes(enemy) || this.phase !== "playing") return;
     enemy.hp -= damage;
     this.hero.energy = Math.min(100, this.hero.energy + 8);
-    this.events.push({ kind: "hit", x: enemy.x, y: enemy.y, value: damage });
+    this.events.push({ kind: "hit", x: enemy.x, y: enemy.y, value: damage, targetId: enemy.id });
     if (enemy.hp <= 0) {
       this.kills++;
       this.enemies = this.enemies.filter((e) => e !== enemy);

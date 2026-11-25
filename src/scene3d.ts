@@ -34,6 +34,13 @@ export class GameScene3D {
   private effects: { mesh: T.Mesh; age: number; life: number }[] = [];
   private labels: { sprite:T.Sprite; age:number }[] = [];
   private shadowTexture?: T.CanvasTexture;
+  private enemyTexture?: T.Texture;
+  private portraitError = false;
+  private heroError = false;
+  private heroLoaded = false;
+  private enemyHeads = new Map<number, { sprite: T.Sprite; hitUntil: number }>();
+  private starTexture?: T.CanvasTexture;
+  private hitParticles: { sprite: T.Sprite; age: number; life: number; velocity: T.Vector3 }[] = [];
   private transient = { action: "", actionTime: 0 };
   private time = 0;
   private last = 0;
@@ -83,6 +90,7 @@ export class GameScene3D {
       this.status("画面连接中断，刷新页面后可继续已保存的进度。", "error");
     });
     this.loadProps();
+    this.loadEnemyPortrait();
     this.loadHero();
     this.renderer.setAnimationLoop(now => this.tick(now));
   }
@@ -96,9 +104,32 @@ export class GameScene3D {
       const button = document.createElement("button");
       button.textContent = "重新加载人物";
       button.className = "text-button";
-      button.onclick = () => this.loadHero();
+      button.onclick = () => {
+        if (!this.enemyTexture) this.loadEnemyPortrait();
+        this.loadHero();
+      };
       box.append(button);
     }
+  }
+  private updateReady() {
+    this.ready = this.heroLoaded && !!this.enemyTexture && !this.portraitError && !this.heroError;
+    if (this.portraitError) this.status("小兵头像未加载成功，检查网络后重试。", "error");
+    else if (this.heroError) this.status("人物未加载成功，检查网络后重试。", "error");
+    else this.status(this.ready ? "" : "人物加载中…", this.ready ? "ready" : "loading");
+    this.dirty = true;
+  }
+  private loadEnemyPortrait() {
+    this.portraitError = false;
+    new T.TextureLoader().load(`${import.meta.env.BASE_URL}textures/enemy-head.png`, texture => {
+      texture.colorSpace = T.SRGBColorSpace;
+      this.enemyTexture = texture;
+      this.stage.dataset.enemyPortrait = "ready";
+      this.updateReady();
+    }, undefined, () => {
+      this.portraitError = true;
+      this.stage.dataset.enemyPortrait = "error";
+      this.updateReady();
+    });
   }
   private loadProps() {
     for (const name of ["cloud","grass"]) {
@@ -132,11 +163,40 @@ export class GameScene3D {
   }
 
   private loadHero() {
+    this.ready = false;
+    this.heroLoaded = false;
+    this.heroError = false;
+    this.actions.clear();
+    if (this.figure) {
+      this.mixer?.stopAllAction();
+      this.hero.remove(this.figure);
+      this.figure.traverse(o => {
+        if (o instanceof T.Mesh) {
+          o.geometry.dispose();
+          for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.dispose();
+        }
+      });
+    }
     this.status("人物加载中…", "loading");
     this.loader.load(this.modelUrl, gltf => {
       this.figure = gltf.scene;
       this.figure.traverse(o => {
-        if (o instanceof T.Mesh) { o.castShadow = false; o.receiveShadow = true; o.frustumCulled = false; }
+        if (o instanceof T.Mesh) {
+          o.castShadow = false; o.receiveShadow = true; o.frustumCulled = false;
+          const original = Array.isArray(o.material) ? o.material : [o.material];
+          const materials = original.map(m => {
+            if (m.name !== "ReferenceFace") return m;
+            const source = m as T.MeshStandardMaterial;
+            // Preserve the selected illustration's colours, without lighting or tone mapping.
+            const portrait = new T.MeshBasicMaterial({
+              map: source.map ?? source.emissiveMap, transparent: true, alphaTest: .02,
+              depthWrite: true, side: T.DoubleSide, toneMapped: false,
+            });
+            portrait.name = "ReferenceFace"; m.dispose();
+            return portrait;
+          });
+          o.material = Array.isArray(o.material) ? materials : materials[0];
+        }
       });
       this.hero.add(this.figure);
       this.mixer = new T.AnimationMixer(this.figure);
@@ -158,6 +218,7 @@ export class GameScene3D {
       }
       if (this.actions.size !== 6) {
         this.hero.remove(this.figure);
+        this.heroError = true;
         this.status("人物动作资源不完整，请重新加载。", "error");
         return;
       }
@@ -165,10 +226,14 @@ export class GameScene3D {
       this.movingAction = this.actions.get("walk")!;
       this.baseAction.play();
       this.movingAction.play().setEffectiveWeight(0);
-      this.ready = true;
-      this.status("", "ready");
-      this.dirty = true;
-    }, undefined, () => this.status("人物未加载成功，检查网络后重试。", "error"));
+      this.heroLoaded = true;
+      this.motion = undefined;
+      this.stage.dataset.heroPortrait = "selected-illustration";
+      this.updateReady();
+    }, undefined, () => {
+      this.heroError = true;
+      this.updateReady();
+    });
   }
 
   private mat(color: string, transparent = false) {
@@ -357,20 +422,20 @@ export class GameScene3D {
       const boss=e.kind==="boss", mage=e.kind==="mage", rusher=e.kind==="rusher";
       const color=boss ? "#9b8bb7" : mage ? "#b49bcb" : rusher ? "#dea274" : "#93b5a0";
       this.mesh(g,"sphere",color,[0,.69,0],[.39,.49,.31]);
-      this.mesh(g,"sphere","#f3dcc0",[0,1.22,.04],[.34,.31,.28]);
-      this.mesh(g,"sphere",color,[0,1.35,-.12],[.38,.30,.30]);
-      this.mesh(g,"sphere","#f3dcc0",[0,1.22,.085],[.32,.27,.27]);
+      const portrait = new T.Sprite(new T.SpriteMaterial({
+        map: this.enemyTexture, transparent: true, alphaTest: .02,
+        toneMapped: false, depthWrite: true,
+      }));
+      portrait.name = "SelectedEnemyHead";
+      portrait.position.set(0,1.43,.06);
+      portrait.scale.set(.78,1.15,1);
+      g.add(portrait);
+      this.enemyHeads.set(e.id,{sprite:portrait,hitUntil:0});
       for (const s of [-1,1]) {
-        const ear=this.mesh(g,"sphere",color,[s*.25,1.54,-.04],[.12,mage?.26:.13,.10]);
-        if (rusher) { ear.scale.y=.21; ear.rotation.z=-s*.35; }
         const arm=this.mesh(g,"sphere",color,[s*.40,.76,.01],[.14,.25,.14]); arm.name=`arm${s}`;
         this.mesh(g,"sphere","#f3dcc0",[s*.43,.55,.025],[.11,.11,.11]);
         const foot=this.mesh(g,"sphere","#655772",[s*.16,.18,.02],[.14,.18,.19]); foot.name=`foot${s}`;
-        this.mesh(g,"sphere","#4d4357",[s*.112,1.24,.334],[.026,.039,.017]);
-        this.mesh(g,"sphere","#fff8e7",[s*.107,1.254,.35],[.008,.011,.004]);
-        this.mesh(g,"sphere","#e6b4ad",[s*.21,1.15,.294],[.039,.019,.008]);
       }
-      this.mesh(g,"sphere","#785868",[0,1.108,.353],[.047,.012,.008]);
       this.mesh(g,"sphere","#ead096",[0,.75,.31],[.20,.26,.035]);
       if (mage) {
         this.mesh(g,"cylinder","#5f536c",[.52,.8,0],[.04,1.4,.04]);
@@ -379,8 +444,8 @@ export class GameScene3D {
       if (boss) {
         g.scale.setScalar(1.75);
         this.box(g,"#a5a8b4",0,.95,-.3,.9,1.1,.16);
-        this.ring(g,"#f3d082",.30,1.57);
-        for (const x of [-.22,0,.22]) this.mesh(g,"cone","#f3d082",[x,1.70,0],[.10,.24,.10]);
+        this.ring(g,"#f3d082",.30,1.99);
+        for (const x of [-.22,0,.22]) this.mesh(g,"cone","#f3d082",[x,2.10,0],[.10,.24,.10]);
       }
       const bar=new T.Group(); bar.name="health"; bar.position.set(0,boss?2.4:2.2,0); g.add(bar);
       this.box(bar,"#424d59",0,0,0,.7,.07,.05);
@@ -390,6 +455,13 @@ export class GameScene3D {
     g.position.set(px(e.x),0,pz(e.y));
     g.rotation.y=Math.atan2(this.hero.position.x-g.position.x,this.hero.position.z-g.position.z);
     g.position.y=e.stun>0 ? .06*Math.sin(this.time*14) : .025*Math.sin(this.time*5+e.id);
+    const head = this.enemyHeads.get(e.id)!;
+    const remaining = Math.max(0, head.hitUntil-this.time);
+    const recoil = remaining > 0 ? Math.sin((.42-remaining)*Math.PI/.42) : 0;
+    head.sprite.material.color.setRGB(1,1-recoil*.42,1-recoil*.55);
+    head.sprite.material.rotation = recoil*.16;
+    head.sprite.position.y = 1.43 + recoil*.12;
+    head.sprite.scale.set(.78*(1+recoil*.08),1.15*(1-recoil*.06),1);
     for (const s of [-1,1]) {
       g.getObjectByName(`arm${s}`)!.rotation.x=e.windup>0 ? -.6 : s*.24*Math.sin(this.time*6+e.id);
       g.getObjectByName(`foot${s}`)!.position.y=.18+s*.035*Math.sin(this.time*6+e.id);
@@ -480,11 +552,59 @@ export class GameScene3D {
       g.scale.y=w.windup>0 ? .22 : 1;
     }
     for (const [key,o] of this.actorMap) {
-      if (!keep.has(key)) { this.dynamic.remove(o); this.actorMap.delete(key); }
+      if (!keep.has(key)) {
+        if (key.startsWith("enemy:")) {
+          const id = Number(key.slice(6));
+          this.enemyHeads.get(id)?.sprite.material.dispose();
+          this.enemyHeads.delete(id);
+        }
+        this.dynamic.remove(o); this.actorMap.delete(key);
+      }
     }
+    this.stage.dataset.enemyHeads = String(this.enemyHeads.size);
+    this.stage.dataset.hitFlashes = String([...this.enemyHeads.values()].filter(h => h.hitUntil>this.time).length);
+  }
+
+  private hitFeedback(e: GameEvent) {
+    if (e.targetId === undefined) return;
+    const head = this.enemyHeads.get(e.targetId);
+    if (head) head.hitUntil = this.time + .42;
+    const alive = this.world.enemies.some(enemy => enemy.id===e.targetId);
+    const actor = this.actorMap.get(`enemy:${e.targetId}`);
+    const height = actor?.scale.y===1.75 ? 2.8 : 1.65;
+    if (!this.starTexture) {
+      const c=document.createElement("canvas"); c.width=c.height=64;
+      const ctx=c.getContext("2d")!;
+      ctx.beginPath();
+      for (let i=0;i<10;i++) {
+        const angle=-Math.PI/2+i*Math.PI/5, r=i%2?12:27;
+        const x=32+Math.cos(angle)*r, y=32+Math.sin(angle)*r;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath(); ctx.fillStyle="#ffe293"; ctx.fill();
+      ctx.lineWidth=3; ctx.strokeStyle="#fff8e4"; ctx.stroke();
+      this.starTexture=new T.CanvasTexture(c);
+      this.starTexture.colorSpace=T.SRGBColorSpace;
+    }
+    for (let i=0;i<(alive?5:9);i++) {
+      const angle=i*Math.PI*2/(alive?5:9);
+      const sprite=new T.Sprite(new T.SpriteMaterial({
+        map:this.starTexture,transparent:true,depthWrite:false,toneMapped:false,
+        color:alive?0xffffff:0xffc7a0,
+      }));
+      sprite.position.set(px(e.x),height,pz(e.y));
+      sprite.scale.setScalar(alive?.32:.42);
+      this.dynamic.add(sprite);
+      this.hitParticles.push({sprite,age:0,life:alive?.58:.85,
+        velocity:new T.Vector3(Math.cos(angle)*1.6,.6+Math.sin(angle)*1.2,Math.sin(angle)*.35)});
+    }
+    this.stage.dataset.lastHitTarget=String(e.targetId);
+    this.stage.dataset.enemyHits=String(Number(this.stage.dataset.enemyHits??0)+1);
+    if (!alive) this.stage.dataset.enemyDefeats=String(Number(this.stage.dataset.enemyDefeats??0)+1);
   }
 
   private event(e: GameEvent) {
+    if (e.kind==="hit") this.hitFeedback(e);
     if (e.kind==="dash") this.transient={action:"dash",actionTime:.22};
     if (e.kind==="shot") this.transient={action:"attack",actionTime:.34};
     if (e.kind==="laugh") this.transient={action:"laugh",actionTime:1.5};
@@ -519,7 +639,7 @@ export class GameScene3D {
     this.camera.lookAt(0,menu?2:0,menu?0:-2);
     if (!this.ready) return;
     const moving=!menu && Math.hypot(input.x,input.y)>.05;
-    const target=menu ? -.08 : this.world.hero.dashTime>0 || (this.transient.action==="dash" && this.transient.actionTime>0)
+    const direction=menu ? -.08 : this.world.hero.dashTime>0 || (this.transient.action==="dash" && this.transient.actionTime>0)
       ? Math.atan2(h.dashX,h.dashY)
       : this.transient.action==="attack" && this.world.enemies.length
         ? (() => {
@@ -527,6 +647,7 @@ export class GameScene3D {
             return Math.atan2(e.x-h.x,e.y-h.y);
           })()
         : moving ? Math.atan2(input.x,input.y) : this.angle;
+    const target = menu ? direction : Math.sin(direction)*.48;
     const delta=Math.atan2(Math.sin(target-this.angle),Math.cos(target-this.angle));
     this.angle+=delta*(1-Math.exp(-dt*12)); this.hero.rotation.y=this.angle;
     const next=heroMotion({
@@ -600,6 +721,18 @@ export class GameScene3D {
           this.labels.splice(this.labels.indexOf(label),1);
         }
       }
+      for (const particle of [...this.hitParticles]) {
+        particle.age+=dt;
+        particle.sprite.position.addScaledVector(particle.velocity,dt);
+        particle.velocity.y-=dt*2;
+        particle.sprite.material.rotation+=dt*2;
+        particle.sprite.material.opacity=Math.max(0,1-particle.age/particle.life);
+        if (particle.age>=particle.life) {
+          this.dynamic.remove(particle.sprite); particle.sprite.material.dispose();
+          this.hitParticles.splice(this.hitParticles.indexOf(particle),1);
+        }
+      }
+      this.stage.dataset.hitParticles=String(this.hitParticles.length);
       this.dirty=true;
     }
     this.hooks.frame();

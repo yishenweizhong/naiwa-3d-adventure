@@ -28,9 +28,10 @@ THE SOFTWARE.
 
 ## Reference character
 
-The character uses original, locally authored cartoon geometry inspired by
-user-provided reference photographs. No photographic face texture is used in
-this release. Original photographs are excluded from this distribution.
+The hero uses a cropped face texture from the illustration selected and supplied
+by the user, with independently authored body geometry, clothing and animation.
+All enemy heads use a cropped portrait from the user's selected photograph.
+The full original images and their backgrounds are excluded from this distribution.
 Public game access does not grant rights to use a person's likeness or
 photographic material for other purposes.
 
