@@ -2,6 +2,7 @@ import * as T from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { World, ARENA, type Input, type GameEvent, type Enemy } from "./model.ts";
 import { heroMotion, type HeroMotion } from "./hero-motion.ts";
+import { heroFraming } from "./hero-framing.ts";
 import { advanceWorld } from "./clock.ts";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
@@ -20,6 +21,7 @@ export class GameScene3D {
   private props = new Map<string,T.Group>();
   private hero = new T.Group();
   private figure?: T.Group;
+  private shieldHand?: T.Object3D;
   private mixer?: T.AnimationMixer;
   private actions = new Map<HeroMotion, T.AnimationAction>();
   private motion?: HeroMotion;
@@ -51,7 +53,7 @@ export class GameScene3D {
   private stage = document.getElementById("stage")!;
   private sun = new T.DirectionalLight(0xffe5b1, 3);
   private loader = new GLTFLoader();
-  private modelUrl = `${import.meta.env.BASE_URL}models/reference-hero.glb?v=selected-portrait-20261125`;
+  private modelUrl = `${import.meta.env.BASE_URL}models/reference-hero.glb?v=tailored-proportions-20261125`;
 
   constructor(private world: World, private hooks: Hooks) {
     this.renderer = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
@@ -206,6 +208,7 @@ export class GameScene3D {
         return;
       }
       this.hero.add(this.figure);
+      this.shieldHand=this.figure.getObjectByName("Hand_L");
       this.mixer = new T.AnimationMixer(this.figure);
       // Base idle/walk remain active under upper-body actions, preserving locomotion.
       const upper = /Spine|Head|UpperArm|Forearm|Hand|Hair|Scarf/;
@@ -345,7 +348,7 @@ export class GameScene3D {
     }
     for (let i=0; i<9; i++) {
       const x=-19+i*4.7, z=-15-Math.sin(i)*2;
-      this.mesh(this.environment, "sphere", dusk ? "#acb9aa" : "#a3c3a0", [x, .3, z], [5, 3.8+(i%3), 4]);
+      this.mesh(this.environment, "sphere", dusk ? "#acb9aa" : "#a3c3a0", [x, 2.8, z], [5, 2.6+(i%3)*.1, 4]);
     }
     this.placeProps();
     if (level === 1) {
@@ -638,12 +641,21 @@ export class GameScene3D {
   private animateHero(dt: number, input: Input) {
     const menu=this.world.phase==="menu", h=this.world.hero;
     const mobile=matchMedia("(max-width:650px) and (orientation:portrait)").matches;
+    const framing=heroFraming(menu,mobile);
     this.hero.position.set(menu?(mobile?0:6):px(h.x),0,menu?2.8:pz(h.y));
-    this.hero.scale.setScalar(menu?(mobile?3.6:4.6):1.5);
-    this.camera.position.lerp(new T.Vector3(0,menu?10:18,menu?27:23),1-Math.exp(-dt*6));
-    this.camera.zoom=T.MathUtils.damp(this.camera.zoom, menu&&mobile?1.75:1,8,dt);
+    this.hero.scale.setScalar(framing.scale);
+    this.camera.position.lerp(new T.Vector3(0,framing.cameraY,framing.cameraZ),1-Math.exp(-dt*6));
+    this.camera.zoom=T.MathUtils.damp(this.camera.zoom, framing.zoom,8,dt);
     this.camera.updateProjectionMatrix();
-    this.camera.lookAt(0,menu?2:0,menu?0:-2);
+    this.camera.lookAt(0,framing.lookY,framing.lookZ);
+    // Record projected upright endpoints for viewport/camera verification.
+    this.camera.updateMatrixWorld();
+    const foot=this.hero.position.clone().project(this.camera);
+    const head=this.hero.position.clone().add(new T.Vector3(0,1.913*framing.scale,0)).project(this.camera);
+    this.stage.dataset.heroProjectedHeight=String(Math.round(Math.abs(head.y-foot.y)*this.renderer.domElement.clientHeight/2));
+    this.stage.dataset.heroProjectedTop=String((1-head.y)/2);
+    this.stage.dataset.heroProjectedBottom=String((1-foot.y)/2);
+    this.stage.dataset.heroScale=String(framing.scale);
     if (!this.ready) return;
     const moving=!menu && Math.hypot(input.x,input.y)>.05;
     const direction=menu ? -.08 : this.world.hero.dashTime>0 || (this.transient.action==="dash" && this.transient.actionTime>0)
@@ -684,11 +696,16 @@ export class GameScene3D {
     if (h.defending) {
       const g=this.item(shieldKey,() => {
         const o=new T.Group();
-        this.mesh(o,"sphere","#b4daef",[0,1.25,.55],[.75,.94,.11],true);
-        const edge=this.ring(o,"#c2e3ef",.78,1.25); edge.rotation.x=0; edge.position.z=.55;
+        this.mesh(o,"sphere","#b4daef",[0,0,0],[.56,.68,.10],true);
+        const edge=this.ring(o,"#c2e3ef",.58,0); edge.rotation.x=0; edge.scale.y=.70;
         return o;
       });
-      g.position.copy(this.hero.position); g.rotation.y=this.angle;
+      this.hero.updateMatrixWorld(true);
+      const hand=this.shieldHand?.getWorldPosition(new T.Vector3())
+        ?? this.hero.position.clone().add(new T.Vector3(-.5,2.8,.6));
+      g.position.copy(hand).add(new T.Vector3(0,-.26,.18).applyAxisAngle(new T.Vector3(0,1,0),this.angle));
+      g.rotation.y=this.angle;
+      this.stage.dataset.shieldHandDistance=String(g.position.distanceTo(hand));
     } else {
       const o=this.actorMap.get(shieldKey);
       if (o) { this.dynamic.remove(o); this.actorMap.delete(shieldKey); }

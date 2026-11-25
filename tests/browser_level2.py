@@ -30,8 +30,19 @@ def state(page):
     return page.evaluate("window.__naiwa.snapshot()")
 
 
-def capture(page, name):
-    page.screenshot(path=str(OUT / f"{name}.png"))
+def capture(page, name, resume_keys=()):
+    # Slow software WebGL screenshots must not leave an unattended battle
+    # running. Freeze through the same visible pause button as the player.
+    s = state(page)
+    paused_for_capture = s["phase"] == "playing" and not s["paused"]
+    if paused_for_capture:
+        page.locator("#pause").click()
+    page.screenshot(path=str(OUT / f"{name}.png"),
+                    style=".overlay{visibility:hidden!important}" if paused_for_capture else None)
+    if paused_for_capture:
+        page.locator("#continue").click()
+        for key in resume_keys:
+            page.keyboard.down(key)
 
 
 def boot(page):
@@ -63,9 +74,15 @@ def play(page, level):
         # interval while screenshots or software rendering are busy.
         page.evaluate("""() => {
           window.hazardDodges=[];
+          window.combatSeen=[];
           const pending=new Map();
           function observe(){
             const s=window.__naiwa.snapshot(), h=s.hero;
+            for(const enemy of s.enemies){
+              if(enemy.kind==='rusher' && enemy.windup>0 && !combatSeen.includes('rusher_warning')) combatSeen.push('rusher_warning');
+              if(enemy.kind==='rusher' && enemy.chargeTime>0 && !combatSeen.includes('rusher_charge')) combatSeen.push('rusher_charge');
+            }
+            if(s.hazards.length && !combatSeen.includes('lightning')) combatSeen.push('lightning');
             for(const hazard of s.hazards){
               if(hazard.windup>0) pending.set(hazard.id,{...hazard,hp:h.hp});
               else if(pending.has(hazard.id)){
@@ -79,7 +96,8 @@ def play(page, level):
           }
           requestAnimationFrame(observe);
         }""")
-    page.keyboard.down("KeyJ")
+    firing=level!=2
+    if firing: page.keyboard.down("KeyJ")
     started = time.monotonic()
     waves, seen = set(), set()
     laughs, dashes = 0, 0
@@ -98,6 +116,10 @@ def play(page, level):
         h = s["hero"]
         enemies = s["enemies"]
         if level == 2:
+            # Let one real rusher finish windup before firing, instead of
+            # sometimes killing every rusher before its charge can occur.
+            if not firing and page.evaluate("window.combatSeen.includes('rusher_charge')"):
+                page.keyboard.down("KeyJ"); firing=True
             target = points[waypoint]
             if math.dist((h["x"], h["y"]), target) < 35:
                 waypoint = (waypoint + 1) % len(points)
@@ -124,7 +146,7 @@ def play(page, level):
                 if e["kind"] == "rusher" and e["windup"] > 0:
                     seen.add("rusher_warning")
                     if "斥候冲锋预警" not in saved_frames:
-                        capture(page, "04_斥候冲锋预警")
+                        capture(page, "04_斥候冲锋预警", pressed | ({"KeyJ"} if firing else set()))
                         saved_frames.add("斥候冲锋预警")
             hazards = s["hazards"]
             if hazards:
@@ -133,14 +155,14 @@ def play(page, level):
                 if current["windup"] > 0:
                     previous_hazard = {**current, "hp": h["hp"]}
                     if "落雷" not in saved_frames:
-                        capture(page, "05_落雷预警")
+                        capture(page, "05_落雷预警", pressed | ({"KeyJ"} if firing else set()))
                         saved_frames.add("落雷")
                 elif previous_hazard and current["id"] == previous_hazard["id"]:
                     if math.dist((h["x"], h["y"]), (current["x"], current["y"])) >= current["radius"] and h["hp"] >= previous_hazard["hp"]:
                         dodges += 1
                     previous_hazard = None
             if s["wave"] == 3 and "第三波" not in saved_frames:
-                capture(page, "06_第三波混合敌人")
+                capture(page, "06_第三波混合敌人", pressed | ({"KeyJ"} if firing else set()))
                 saved_frames.add("第三波")
         if h["energy"] == 100 and any(math.dist((h["x"], h["y"]), (e["x"], e["y"])) < 240 for e in enemies):
             page.keyboard.press("Space")
@@ -150,12 +172,12 @@ def play(page, level):
                 if e["windup"] > 0:
                     seen.add("boss_warning")
                     if level == 2 and "首领" not in saved_frames:
-                        capture(page, "07_风暴执政官")
+                        capture(page, "07_风暴执政官", pressed | ({"KeyJ"} if firing else set()))
                         saved_frames.add("首领")
                 if e["enraged"]:
                     seen.add("boss_enraged")
                     if level == 2 and "狂暴" not in saved_frames:
-                        capture(page, "08_首领半血狂暴")
+                        capture(page, "08_首领半血狂暴", pressed | ({"KeyJ"} if firing else set()))
                         saved_frames.add("狂暴")
         if time.monotonic() - last_print > 8:
             print(f"PLAY level={level} wave={s['wave']} kills={s['kills']} hp={h['hp']} elapsed={s['elapsed']:.1f}", flush=True)
@@ -166,6 +188,7 @@ def play(page, level):
     end = state(page)
     if level == 2:
         dodges = max(dodges, page.evaluate("window.hazardDodges.length"))
+        seen.update(page.evaluate("window.combatSeen"))
     REPORT[f"level{level}"] = {
         "phase": end["phase"], "kills": end["kills"], "hp": end["hero"]["hp"],
         "battle_seconds": round(end["elapsed"], 2), "waves": sorted(waves),

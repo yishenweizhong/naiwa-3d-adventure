@@ -27,7 +27,8 @@ def play_third(page):
     waypoint, laughs, dashes, safe_passes = 0, 0, 0, 0
     pressed, waves, seen, passed = set(), set(), set(), set()
     started, printed = time.monotonic(), 0
-    while time.monotonic() - started < 150:
+    # Software WebGL in headless Chromium can advance slower than wall time.
+    while time.monotonic() - started < 300:
         s = state(page)
         if s["phase"] in ("won", "defeat"):
             break
@@ -58,32 +59,32 @@ def play_third(page):
             if enemy["kind"] == "boss":
                 if enemy["windup"] > 0:
                     if "boss_warning" not in seen:
-                        capture(page, "08_长夜钟守预警")
+                        capture(page, "08_长夜钟守预警", pressed | {"KeyJ"})
                     seen.add("boss_warning")
                     if math.dist((h["x"], h["y"]), (enemy["aimX"], enemy["aimY"])) < 170 and h["dashCooldown"] == 0:
                         page.keyboard.press("KeyL")
                         dashes += 1
                 if enemy["enraged"]:
                     if "boss_enraged" not in seen:
-                        capture(page, "09_长夜钟守半血狂暴")
+                        capture(page, "09_长夜钟守半血狂暴", pressed | {"KeyJ"})
                     seen.add("boss_enraged")
         for wall in s["windWalls"]:
             if wall["windup"] > 0:
                 if "wind_warning" not in seen:
-                    capture(page, "04_风墙预警与安全缺口")
+                    capture(page, "04_风墙预警与安全缺口", pressed | {"KeyJ"})
                 seen.add("wind_warning")
             else:
                 if "wind_active" not in seen:
-                    capture(page, "05_移动风墙")
+                    capture(page, "05_移动风墙", pressed | {"KeyJ"})
                 seen.add("wind_active")
                 if wall["x"] > h["x"] + 22 and wall["id"] not in passed:
                     passed.add(wall["id"])
                     if abs(h["y"] - wall["gapY"]) < wall["gapHeight"] / 2 and not wall["hit"]:
                         safe_passes += 1
                         if safe_passes == 1:
-                            capture(page, "06_真实缺口避伤")
+                            capture(page, "06_真实缺口避伤", pressed | {"KeyJ"})
         if s["wave"] == 4 and "fourth_wave" not in seen:
-            capture(page, "07_第四波混合守卫")
+            capture(page, "07_第四波混合守卫", pressed | {"KeyJ"})
             seen.add("fourth_wave")
         if time.monotonic() - printed > 8:
             print(f"PLAY level=3 wave={s['wave']} hp={h['hp']} kills={s['kills']} elapsed={s['elapsed']:.1f}", flush=True)

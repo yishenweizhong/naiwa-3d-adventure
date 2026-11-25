@@ -41,7 +41,7 @@ for name in ["src","public","tests","tools","3D人物","参考项目"]:
 for f in (root/"验收").rglob("*"):
     if f.is_file() and f.suffix in {".json",".png",".mp4",".log"}:
         source.append((f,f.relative_to(root)))
-for name in ["package.json","package-lock.json","tsconfig.json","vite.config.ts","index.html","README.md",".gitignore","优化说明.md","设计与实施.md"]:
+for name in ["package.json","package-lock.json","tsconfig.json","vite.config.ts","index.html","README.md",".gitignore","优化说明.md","设计与实施.md","比例修订计划.md","对抗式审查报告.md"]:
     f=root/name
     if f.exists(): source.append((f,Path(name)))
 model=[(f,f.relative_to(root/"3D人物")) for f in (root/"3D人物").iterdir()
@@ -49,9 +49,12 @@ model=[(f,f.relative_to(root/"3D人物")) for f in (root/"3D人物").iterdir()
 model.append((root/"public/models/reference-hero.glb",Path("reference-hero.glb")))
 for f in (root/"public/textures").glob("*.png"):
     model.append((f,Path("textures")/f.name))
-validation=root/"验收/GLB校验.json"
+validation=root/"验收/比例修订/GLB校验.json"
+if not validation.exists(): validation=root/"验收/GLB校验.json"
 if validation.exists():
     model.append((validation,Path("验收/GLB校验.json")))
+review=root/"对抗式审查报告.md"
+if review.exists(): model.append((review,Path("对抗式审查报告.md")))
 manifest=[
     archive("西红柿历险记_部署包.zip",deploy),
     archive("西红柿历险记_完整源码与Blender.zip",source),
