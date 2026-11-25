@@ -38,7 +38,7 @@ def run():
           new MutationObserver(()=>observedMotions.push(document.querySelector('#stage').dataset.heroMotion))
           .observe(document.querySelector('#stage'),{attributes:true,attributeFilter:['data-hero-motion']});
         """)
-        check("本地GLB实际加载，首页显示新人物",bool(report["model_loads"]) and report["model_loads"][0]["status"]==200)
+        check("游戏GLB实际加载，首页显示新人物",bool(report["model_loads"]) and report["model_loads"][0]["status"]==200)
         page.screenshot(path=str(OUT/"01_新人物首页.png"))
         page.locator("#practice").click(); motion(page,"idle")
         page.keyboard.down("KeyD"); motion(page,"walk")
