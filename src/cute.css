@@ -281,6 +281,18 @@ footer { max-width:1340px; margin:auto; padding:17px 24px; display:flex; justify
   footer { font-size:8px; padding:15px; gap:8px }
   footer>span:last-child { display:none }
 }
+@media(max-width:360px) and (orientation:portrait) {
+  .hud { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start }
+  .hero-status { min-width:0 }
+  .utilities { grid-column:2; grid-row:1 }
+  .wave-status { grid-column:2; grid-row:2; min-width:0; justify-self:end }
+  .move-cluster { width:64px; flex-shrink:0 }
+  .joystick { width:64px; height:64px }
+  .move-hint { font-size:7px }
+  .actions { gap:4px }
+  .action { width:44px }
+  .attack { width:50px }
+}
 @media(prefers-reduced-motion:reduce) {
   button,.meter i,.wave-toast { transition:none }
   .dialog-overlay { backdrop-filter:none }

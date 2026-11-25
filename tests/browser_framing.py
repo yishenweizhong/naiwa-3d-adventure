@@ -26,6 +26,7 @@ with sync_playwright() as p:
             return {"height":int(s["heroProjectedHeight"]),"top":float(s["heroProjectedTop"]),
                     "bottom":float(s["heroProjectedBottom"]),"scale":float(s["heroScale"])}
         menu=frame()
+        check(f"{name}菜单没有横向溢出",not page.evaluate("document.documentElement.scrollWidth>innerWidth"))
         check(f"{name}菜单完整显示头脚",menu["top"]>.025 and menu["bottom"]<.97)
         check(f"{name}菜单人物具有足够尺寸",menu["height"]>=140)
         check(f"{name}新模型使用更新缓存版本",any("tailored-proportions" in u for u in models))
@@ -34,6 +35,11 @@ with sync_playwright() as p:
         practice=frame()
         check(f"{name}战斗人物等比缩放",practice["scale"]==2)
         check(f"{name}战斗人物未裁切",practice["top"]>0 and practice["bottom"]<1)
+        boxes=page.locator(".utilities button,#joystick,#attack,#defend,#dash,#laugh").evaluate_all(
+            "(els)=>els.map(e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}})")
+        check(f"{name}暂停和全部操作按钮都在屏内且无横向溢出",
+              bool(boxes) and all(b["left"]>=0 and b["right"]<=w and b["top"]>=0 and b["bottom"]<=h for b in boxes)
+              and not page.evaluate("document.documentElement.scrollWidth>innerWidth"))
         if w<=650 and h>w:
             guide=page.locator("#guide").bounding_box()
             canvas=page.locator("#game").bounding_box()

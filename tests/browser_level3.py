@@ -22,7 +22,28 @@ SAVE_KEY = "naiwa.campaign.v3"
 
 
 def play_third(page):
-    page.keyboard.down("KeyJ")
+    page.evaluate("""() => {
+      window.windPasses=[];
+      const tracked=new Map(), passed=new Set();
+      function observe(){
+        const s=window.__naiwa.snapshot(), h=s.hero;
+        for(const wall of s.windWalls){
+          const previous=tracked.get(wall.id);
+          if(previous && previous.x<=h.x+22 && wall.x>h.x+22 &&
+             Math.abs(h.y-wall.gapY)<wall.gapHeight/2 && !wall.hit && !passed.has(wall.id)){
+            passed.add(wall.id);
+            windPasses.push({id:wall.id,x:wall.x,heroX:h.x,heroY:h.y,
+                            gapY:wall.gapY,gapHeight:wall.gapHeight,hit:wall.hit});
+          }
+          tracked.set(wall.id,{x:wall.x});
+        }
+        if(s.phase==='playing' && s.level===3) requestAnimationFrame(observe);
+      }
+      requestAnimationFrame(observe);
+    }""")
+    # First demonstrate one actual safe gap before firing so a quick wave
+    # clear cannot remove the wall before it reaches the player.
+    firing = False
     points = [(180, 320), (540, 320), (540, 590), (180, 590)]
     waypoint, laughs, dashes, safe_passes = 0, 0, 0, 0
     pressed, waves, seen, passed = set(), set(), set(), set()
@@ -33,12 +54,16 @@ def play_third(page):
         if s["phase"] in ("won", "defeat"):
             break
         h, enemies = s["hero"], s["enemies"]
+        safe_passes = max(safe_passes, page.evaluate("window.windPasses.length"))
+        if not firing and safe_passes:
+            page.keyboard.down("KeyJ")
+            firing = True
         waves.add(s["wave"])
         if math.dist((h["x"], h["y"]), points[waypoint]) < 35:
             waypoint = (waypoint + 1) % len(points)
         target = points[waypoint]
         approaching = [w for w in s["windWalls"]
-                       if h["x"] - 320 < w["x"] < h["x"] + 22]
+                       if h["x"] - (650 if not firing else 320) < w["x"] < h["x"] + 22]
         if approaching:
             wall = max(approaching, key=lambda w: w["x"])
             target = (h["x"], wall["gapY"])
@@ -59,32 +84,32 @@ def play_third(page):
             if enemy["kind"] == "boss":
                 if enemy["windup"] > 0:
                     if "boss_warning" not in seen:
-                        capture(page, "08_长夜钟守预警", pressed | {"KeyJ"})
+                        capture(page, "08_长夜钟守预警", pressed | ({"KeyJ"} if firing else set()))
                     seen.add("boss_warning")
                     if math.dist((h["x"], h["y"]), (enemy["aimX"], enemy["aimY"])) < 170 and h["dashCooldown"] == 0:
                         page.keyboard.press("KeyL")
                         dashes += 1
                 if enemy["enraged"]:
                     if "boss_enraged" not in seen:
-                        capture(page, "09_长夜钟守半血狂暴", pressed | {"KeyJ"})
+                        capture(page, "09_长夜钟守半血狂暴", pressed | ({"KeyJ"} if firing else set()))
                     seen.add("boss_enraged")
         for wall in s["windWalls"]:
             if wall["windup"] > 0:
                 if "wind_warning" not in seen:
-                    capture(page, "04_风墙预警与安全缺口", pressed | {"KeyJ"})
+                    capture(page, "04_风墙预警与安全缺口", pressed | ({"KeyJ"} if firing else set()))
                 seen.add("wind_warning")
             else:
                 if "wind_active" not in seen:
-                    capture(page, "05_移动风墙", pressed | {"KeyJ"})
+                    capture(page, "05_移动风墙", pressed | ({"KeyJ"} if firing else set()))
                 seen.add("wind_active")
                 if wall["x"] > h["x"] + 22 and wall["id"] not in passed:
                     passed.add(wall["id"])
                     if abs(h["y"] - wall["gapY"]) < wall["gapHeight"] / 2 and not wall["hit"]:
                         safe_passes += 1
                         if safe_passes == 1:
-                            capture(page, "06_真实缺口避伤", pressed | {"KeyJ"})
+                            capture(page, "06_真实缺口避伤", pressed | ({"KeyJ"} if firing else set()))
         if s["wave"] == 4 and "fourth_wave" not in seen:
-            capture(page, "07_第四波混合守卫", pressed | {"KeyJ"})
+            capture(page, "07_第四波混合守卫", pressed | ({"KeyJ"} if firing else set()))
             seen.add("fourth_wave")
         if time.monotonic() - printed > 8:
             print(f"PLAY level=3 wave={s['wave']} hp={h['hp']} kills={s['kills']} elapsed={s['elapsed']:.1f}", flush=True)
@@ -97,7 +122,8 @@ def play_third(page):
         "phase": end["phase"], "kills": end["kills"], "hp": end["hero"]["hp"],
         "battle_seconds": round(end["elapsed"], 2), "waves": sorted(waves),
         "observed": sorted(seen), "laugh_uses": laughs, "dash_uses": dashes,
-        "safe_gap_passes": safe_passes,
+        "safe_gap_passes": max(safe_passes,page.evaluate("window.windPasses.length")),
+        "safe_gap_observations": page.evaluate("window.windPasses"),
     }
     capture(page, "10_第三关实际结果")
     check("真实按键完成第三关五波和35个敌人", end["phase"] == "won" and end["kills"] == 35 and waves == {1,2,3,4,5})
