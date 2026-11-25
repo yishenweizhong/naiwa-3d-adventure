@@ -190,7 +190,7 @@ export class GameScene3D {
             // Preserve the selected illustration's colours, without lighting or tone mapping.
             const portrait = new T.MeshBasicMaterial({
               map: source.map ?? source.emissiveMap, transparent: true, alphaTest: .02,
-              depthWrite: true, side: T.DoubleSide, toneMapped: false,
+              depthWrite: true, side: T.FrontSide, toneMapped: false,
             });
             portrait.name = "ReferenceFace"; m.dispose();
             return portrait;

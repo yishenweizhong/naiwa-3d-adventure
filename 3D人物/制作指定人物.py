@@ -20,6 +20,7 @@ M={k:material(k,c,r) for k,c,r in [
     ("lace","fff4e1",.85),("gold","c8a261",.38),("shoe","24252b",.65)]}
 face=bpy.data.materials.new("ReferenceFace"); face.use_nodes=True
 face.surface_render_method="DITHERED"
+face.use_backface_culling=True
 nodes=face.node_tree.nodes; nodes.clear()
 output=nodes.new("ShaderNodeOutputMaterial")
 emission=nodes.new("ShaderNodeEmission"); transparent=nodes.new("ShaderNodeBsdfTransparent")
@@ -30,7 +31,13 @@ texture.image.pack()
 uv_node=nodes.new("ShaderNodeUVMap"); uv_node.uv_map="UVMap"
 face.node_tree.links.new(uv_node.outputs["UV"],texture.inputs["Vector"])
 face.node_tree.links.new(texture.outputs["Color"],emission.inputs["Color"])
-face.node_tree.links.new(texture.outputs["Alpha"],mix.inputs[0])
+geometry=nodes.new("ShaderNodeNewGeometry")
+front=nodes.new("ShaderNodeMath"); front.operation="SUBTRACT"; front.inputs[0].default_value=1
+alpha=nodes.new("ShaderNodeMath"); alpha.operation="MULTIPLY"
+face.node_tree.links.new(geometry.outputs["Backfacing"],front.inputs[1])
+face.node_tree.links.new(front.outputs[0],alpha.inputs[0])
+face.node_tree.links.new(texture.outputs["Alpha"],alpha.inputs[1])
+face.node_tree.links.new(alpha.outputs[0],mix.inputs[0])
 face.node_tree.links.new(transparent.outputs[0],mix.inputs[1])
 face.node_tree.links.new(emission.outputs[0],mix.inputs[2])
 face.node_tree.links.new(mix.outputs[0],output.inputs[0])
@@ -144,8 +151,8 @@ for s,side in [(-1,"L"),(1,"R")]:
     ell("FlatShoe",(s*.09,-.052,.047),(.058,.106,.043),"shoe",f"Foot_{side}")
 
 # The supplied face lies on a gently curved front surface. No substitute eyes or mouth.
-ell("HeadBack",(0,.044,1.66),(.128,.07,.14),"hair","Head",36,24)
-ell("JawBack",(0,.005,1.599),(.094,.08,.109),"skin","Head",32,20)
+ell("HeadBack",(0,-.06,1.66),(.14,.105,.175),"hair","Head",36,24)
+ell("JawBack",(0,-.08,1.599),(.094,.08,.109),"skin","Head",32,20)
 n,m=20,24
 verts=[]; uvs=[]
 for j in range(m+1):
