@@ -1,0 +1,22 @@
+docs/assets/index-eB__KlTs.js
+  h_b23a6a8439c0dd 3947
+docs/index.html
+  h_b23a6a8439c0dd 15
+src/scene3d.ts
+  h_b23a6a8439c0dd 713
+tests/browser_portraits.py
+  h_b23a6a8439c0dd 92-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "c75f533e91e11684ea46f265bbe27e566bef3384",
+  "prompts": {},
+  "humans": {
+    "h_b23a6a8439c0dd": {
+      "author": "unknown"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
