@@ -45,8 +45,8 @@ model=[(f,f.relative_to(root/"3D人物")) for f in (root/"3D人物").iterdir()
        if f.is_file() and f.name!=".DS_Store" and not f.name.endswith(".blend1")]
 model.append((root/"public/models/reference-hero.glb",Path("reference-hero.glb")))
 manifest=[
-    archive("奶蛙可爱卡通版_部署包.zip",deploy),
-    archive("奶蛙可爱卡通版_完整源码与Blender.zip",source),
+    archive("西红柿历险记_部署包.zip",deploy),
+    archive("西红柿历险记_完整源码与Blender.zip",source),
     archive("可爱人物模型与六组动作.zip",model),
 ]
 (root/"交付清单.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2))
