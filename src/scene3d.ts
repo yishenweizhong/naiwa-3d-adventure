@@ -710,7 +710,7 @@ export class GameScene3D {
       if (this.ready) advanceWorld(this.world,dt,input);
       for (const e of this.world.events.splice(0)) this.event(e);
       this.time+=dt;
-      this.syncActors();
+      if (this.ready) this.syncActors();
       this.animateHero(dt,input);
       for (const blades of this.windmills) blades.rotation.z=this.time*.38;
       for (const fx of [...this.effects]) {

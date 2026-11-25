@@ -89,6 +89,21 @@ with sync_playwright() as p:
         bad.wait_for_function("document.querySelector('#stage').dataset.heroState==='ready'")
         check(asset+"重试后加载指定人物",data(bad).get("heroPortrait")=="selected-illustration")
         bad.close()
+    # Starting during a slow portrait download must not create white heads.
+    slow=browser.new_page()
+    pending=[]
+    slow.route("**/textures/enemy-head.png*",lambda route:pending.append(route))
+    slow.goto(BASE,wait_until="domcontentloaded")
+    slow.locator("#start").click()
+    slow.wait_for_timeout(400)
+    s=snapshot(slow)
+    check("头像未下载时提前开始不会受伤或创建空白头像",
+          bool(pending) and s["elapsed"]==0 and s["hero"]["hp"]==120 and int(data(slow).get("enemyHeads","0"))==0)
+    for route in pending: route.continue_()
+    slow.wait_for_function("document.querySelector('#stage').dataset.heroState==='ready'")
+    slow.wait_for_function("Number(document.querySelector('#stage').dataset.enemyHeads)===window.__naiwa.snapshot().enemies.length")
+    check("慢下载完成后全部小兵显示指定头像",int(data(slow)["enemyHeads"])==len(snapshot(slow)["enemies"])>0)
+    slow.close()
     browser.close()
 (OUT/"指定人物与受击验证.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
 print("COMPLETE",len(report["checks"]),OUT,flush=True)
