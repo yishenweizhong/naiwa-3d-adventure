@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f3eedf" />
+    <meta
+      name="description"
+      content="奶蛙历险记：村庄、风车谷和晨光钟楼的全 3D 三关动作冒险。支持键盘、触控与本地存档。"
+    />
+    <title>奶蛙历险记 · 三关冒险</title>
+    <script type="module" crossorigin src="./assets/index-DF9MB69F.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BevyU8gL.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="wordmark" href="./" aria-label="奶蛙历险记首页"
+        ><span class="brand-dot"></span> 奶蛙历险记</a
+      >
+      <span class="chapter-label">第一章 · 守住奶笑村</span>
+      <span class="edition">三关冒险 / 全 3D 版</span>
+    </header>
+    <main>
+      <div class="stage" id="stage" aria-label="奶蛙历险记游戏区域">
+        <div id="game"></div>
+        <div id="character-status" role="status" aria-live="polite">人物加载中…</div>
+        <div class="hud" id="hud" hidden>
+          <div class="hero-status">
+            <span class="hero-badge" aria-hidden="true">✦</span>
+            <div>
+              <div class="status-title">
+                <strong>奶蛙</strong><span id="hp-text">120 / 120</span>
+              </div>
+              <div
+                class="meter hp-meter"
+                role="progressbar"
+                aria-label="生命值"
+                aria-valuemin="0"
+                aria-valuemax="120"
+                id="hp-meter"
+              >
+                <i id="hp-fill"></i>
+              </div>
+              <div class="energy-caption">
+                <span>笑能</span><span id="energy-text">30%</span>
+              </div>
+              <div
+                class="meter energy-meter"
+                role="progressbar"
+                aria-label="笑能"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                id="energy-meter"
+              >
+                <i id="energy-fill"></i>
+              </div>
+            </div>
+          </div>
+          <div class="wave-status">
+            <span id="wave-title">安全练习</span
+            ><strong id="wave-detail">熟悉你的本领</strong>
+            <div class="wave-dots" id="wave-dots"><i></i><i></i><i></i></div>
+          </div>
+          <nav class="utilities" aria-label="游戏设置">
+            <button
+              id="sound"
+              class="utility"
+              aria-label="关闭声音"
+              title="声音"
+            >
+              ♪
+            </button>
+            <button
+              id="help"
+              class="utility"
+              aria-label="操作说明"
+              title="操作说明"
+            >
+              ?
+            </button>
+            <button
+              id="fullscreen"
+              class="utility"
+              aria-label="进入全屏"
+              title="全屏"
+            >
+              ⛶
+            </button>
+            <button
+              id="pause"
+              class="utility"
+              aria-label="暂停游戏"
+              title="暂停 / Esc"
+            >
+              Ⅱ
+            </button>
+          </nav>
+        </div>
+        <div class="boss-status" id="boss-status" hidden>
+          <div>
+            <strong id="boss-name">冷面领主</strong
+            ><span id="boss-label">看清红圈，再出手</span>
+          </div>
+          <div class="meter boss-meter"><i id="boss-fill"></i></div>
+        </div>
+        <div class="guide" id="guide" hidden aria-live="polite">
+          <span class="guide-number" id="guide-number">01</span>
+          <div>
+            <strong id="guide-title"></strong>
+            <p id="guide-copy"></p>
+          </div>
+          <button id="guide-ready" class="small-primary" hidden>
+            出发守村 →
+          </button>
+          <button id="skip-practice" class="small-primary">直接开打 →</button>
+        </div>
+        <div class="wave-toast" id="wave-toast" role="status"></div>
+        <div class="storm-note" id="storm-note" hidden role="status"></div>
+        <div class="controls" id="controls" hidden>
+          <div class="move-cluster">
+            <div id="joystick" class="joystick" aria-label="拖动摇杆移动">
+              <span class="joystick-cross"></span
+              ><span id="stick" class="stick"></span>
+            </div>
+            <span class="move-hint">WASD / 方向键</span>
+          </div>
+          <div class="actions">
+            <button
+              class="action attack"
+              id="attack"
+              aria-label="奶弹攻击，按住连发"
+            >
+              <span class="action-symbol">↗</span><strong>奶弹</strong
+              ><small>J · 按住连发</small>
+            </button>
+            <button
+              class="action defend"
+              id="defend"
+              aria-label="举盾防御，按住减伤"
+            >
+              <span class="action-symbol">◇</span><strong>举盾</strong
+              ><small>K · 按住减伤</small>
+            </button>
+            <button class="action dash" id="dash" aria-label="冲刺">
+              <span class="action-symbol">»</span><strong>冲刺</strong
+              ><small id="dash-label">L · 躲开攻击</small>
+            </button>
+            <button class="action laugh" id="laugh" aria-label="释放大笑">
+              <span class="action-symbol">☺</span><strong>大笑</strong
+              ><small id="laugh-label">空格 · 积攒笑能</small>
+            </button>
+          </div>
+        </div>
+        <section class="overlay menu-overlay" id="menu">
+          <div class="menu-content">
+            <span class="eyebrow">一个新伙伴，一点大本领</span>
+            <h1>奶蛙<br />历险记<span class="title-dot">。</span></h1>
+            <p class="intro">
+              冷面军团闯进了村子。<br />用奶弹、盾牌和一场大笑，<br />把好心情带回来。
+            </p>
+            <div class="menu-buttons">
+              <button id="start" class="primary">直接闯第一关 <span>→</span></button
+              ><button id="resume" class="secondary" hidden>
+                继续上次冒险
+              </button>
+            </div>
+            <button id="practice" class="text-button">先练习操作</button>
+            <p class="chapter-note">奶笑村 / 风车谷 / 晨光钟楼</p>
+            <button id="start-level2" class="chapter-link" disabled>
+              第二关 · 通关第一关后解锁
+            </button>
+            <button id="start-level3" class="chapter-link" disabled>
+              第三关 · 通关第二关后解锁
+            </button>
+            <button class="text-button" id="menu-help">
+              第一次玩？看看操作
+            </button>
+          </div>
+          <div class="menu-art-note">
+            <span class="note-line"></span>
+            <p>奶笑村的守护者<br /><strong>把好心情带回来。</strong></p>
+          </div>
+        </section>
+        <section
+          class="overlay dialog-overlay"
+          id="level-briefing"
+          hidden
+          aria-label="第二关说明"
+        >
+          <div class="dialog briefing-dialog">
+            <span class="eyebrow" id="briefing-eyebrow"
+              >第二章 · 暮色风车谷</span
+            >
+            <h2 id="briefing-title">风停之前，把笑声送回来。</h2>
+            <p id="briefing-intro">三波守卫之后，风暴执政官正在等你。</p>
+            <div class="briefing-rules">
+              <p>
+                <b>突袭斥候</b><span>蓄力时会锁定冲锋路线，横向躲开。</span>
+              </p>
+              <p>
+                <b>落雷预警</b><span>黄色圆圈出现后有 1.1 秒躲避时间。</span>
+              </p>
+              <p><b>风暴首领</b><span>躲开红圈；半血后的弹幕更密。</span></p>
+            </div>
+            <p class="help-tip" id="briefing-tip">
+              操作保持不变。失败只重开第二关，<br />不用再打第一关。
+            </p>
+            <button id="begin-level" class="primary">进入风车谷 →</button>
+          </div>
+        </section>
+        <section
+          class="overlay dialog-overlay"
+          id="pause-overlay"
+          hidden
+          aria-label="游戏暂停"
+        >
+          <div class="dialog">
+            <span class="eyebrow">歇口气，冒险还在</span>
+            <h2 id="pause-title">已暂停</h2>
+            <p id="pause-copy">当前进度会保存在这台设备上。<br />回来时，从这里继续。</p>
+            <button id="continue" class="primary">继续冒险 →</button
+            ><button id="back-menu" class="secondary">返回首页</button
+            ><span class="dialog-note">Esc 也可以继续</span>
+          </div>
+        </section>
+        <section
+          class="overlay dialog-overlay"
+          id="help-overlay"
+          hidden
+          aria-label="操作说明"
+        >
+          <div class="dialog help-dialog">
+            <span class="eyebrow">上手只要一分钟</span>
+            <h2>把快乐打回来</h2>
+            <div class="help-rows">
+              <p><b>移动</b><span>WASD / 方向键，或拖动左侧摇杆</span></p>
+              <p><b>奶弹 · J</b><span>按住连发，自动瞄准最近的敌人</span></p>
+              <p><b>举盾 · K</b><span>按住减少 60% 伤害，移动会变慢</span></p>
+              <p><b>冲刺 · L</b><span>沿移动方向闪避，2.5 秒后可再用</span></p>
+              <p>
+                <b>大笑 · 空格</b
+                ><span>笑能满后，伤害并眩晕附近敌人，清除敌方弹幕</span>
+              </p>
+            </div>
+            <p class="help-tip">
+              避开红色预警圈，拾取牛奶恢复生命。<br />失败可以免费重来；切到后台会自动暂停。
+            </p>
+            <button id="close-help" class="primary">知道了 →</button>
+          </div>
+        </section>
+        <section
+          class="overlay dialog-overlay"
+          id="result"
+          hidden
+          aria-live="polite"
+        >
+          <div class="dialog result-dialog">
+            <span class="result-seal" id="result-seal">☺</span
+            ><span class="eyebrow" id="result-eyebrow"></span>
+            <h2 id="result-title"></h2>
+            <p id="result-copy"></p>
+            <div class="result-stats">
+              <div>
+                <strong id="result-kills"></strong><span>击退敌人</span>
+              </div>
+              <div><strong id="result-time"></strong><span>战斗用时</span></div>
+            </div>
+            <button id="next-level" class="primary" hidden>前往第二关 →</button>
+            <button id="retry" class="primary">再试一次 →</button
+            ><button id="result-menu" class="secondary">返回首页</button>
+          </div>
+        </section>
+      </div>
+      <p class="portrait-note">
+        横屏会更好玩。也可以直接用下方摇杆和按钮操作。
+      </p>
+    </main>
+    <footer>
+      <span>全 3D 冒险 · Three.js × Blender</span
+      ><span id="save-note">进度自动保存在本机</span
+      ><span id="place-note">奶笑村 · 晴</span>
+    </footer>
+  </body>
+</html>

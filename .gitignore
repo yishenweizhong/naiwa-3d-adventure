@@ -1,0 +1,13 @@
+node_modules
+dist/
+验收/
+3D人物/
+*.zip
+*.webm
+*.mp4
+__pycache__/
+*.pyc
+.DS_Store
+优化说明.md
+改造方案.md
+交付清单.json

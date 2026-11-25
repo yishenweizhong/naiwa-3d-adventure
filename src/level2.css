@@ -1,0 +1,98 @@
+.chapter-link {
+  display: block;
+  padding: 9px 0;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  color: #617969;
+  text-align: left;
+}
+.chapter-link:disabled {
+  color: #a29a80;
+}
+.storm-note {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: #815f25;
+  background: #fff3ceec;
+  border: 1px solid #b3995f50;
+  border-radius: 8px;
+  padding: 7px 12px;
+  pointer-events: none;
+}
+.briefing-rules {
+  text-align: left;
+  margin: 16px 0;
+}
+.briefing-rules p {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 8px 0;
+  border-bottom: 1px solid #b1aa8b30;
+}
+.briefing-rules b {
+  min-width: 65px;
+  color: #5c7d76;
+}
+.briefing-rules span {
+  color: #857c61;
+}
+.briefing-dialog h2 {
+  font-size: 30px;
+}
+#stage[data-chapter="2"] .wave-status {
+  color: #526d70;
+}
+#stage[data-chapter="2"] .wave-dots i.active {
+  background: #738f8c;
+}
+#stage[data-chapter="2"] .boss-meter i {
+  background: #6b879a;
+}
+#stage[data-chapter="2"] #boss-name {
+  color: #5d7e8c;
+}
+@media (max-height: 650px) and (orientation: landscape) {
+  .chapter-link {
+    font-size: 9px;
+    padding: 5px 0;
+  }
+  .briefing-dialog {
+    padding: 15px 26px;
+  }
+  .briefing-dialog h2 {
+    font-size: 23px;
+    margin: 9px 0;
+  }
+  .briefing-rules {
+    margin: 9px 0;
+  }
+  .briefing-rules p {
+    font-size: 10px;
+    padding: 5px 0;
+  }
+  .storm-note {
+    font-size: 9px;
+    padding: 5px 9px;
+  }
+}
+@media (max-width: 650px) and (orientation: portrait) {
+  .chapter-link {
+    font-size: 7px;
+    padding: 3px 0;
+  }
+  .storm-note {
+    font-size: 6px;
+    padding: 4px 6px;
+    top: 32%;
+  }
+  .briefing-dialog h2 {
+    font-size: 28px;
+  }
+}
